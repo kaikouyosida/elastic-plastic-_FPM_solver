@@ -1,5 +1,0 @@
-Number_of_conditions 3
-face direction(x:0 y:1 z:2) / face coordinate / fixed direction / displacement type
-2       0.0    0      0
-2       0.0    1      0
-2       0.0    2      0

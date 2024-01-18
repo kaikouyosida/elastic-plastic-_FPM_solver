@@ -1,9 +1,0 @@
-// Dimension of the model //
-3
-
-// Subdomain type //
-// triangle:0  quadrangle:1  tetrahedron:2  hexahedron:3 //
-3
-
-// Support range (short:1  long:2) //
-1
