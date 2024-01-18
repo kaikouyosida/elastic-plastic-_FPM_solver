@@ -1,1 +1,0 @@
-# elastic-plastic-_FPM_solver
