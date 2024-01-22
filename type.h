@@ -52,6 +52,44 @@ typedef struct
     int *subdomain_node;                //サブドメインの頂点番号の配列
     int *ar_node_offset;                //サブドメイン内に配置された頂点の先頭番号
     int *ar_node;                       //サブドメイン内に配置された頂点番号
+
+    double **displacement;              //ポイントごとの変位
+    double **displacement_increment;    //ポイントごとの変位の増分
+
+    double **external_force;                    //外力ベクトル
+    double **global_external_force;             //全体の外力ベクトル
+    double **previous_global_external_force;    //前ステップの外力ベクトル
+
+    double **internal_force;                    //内力ベクトル
+    double **global_internal_force;             //全体の内力ベクトル
+    
+    double ***deformation_gradients;            //変形勾配テンソル
+    double ***current_deformation_gradients;    //現配置に対する変形勾配テンソル
+
+    double **elastic_strains;                   //弾性ひずみ
+    double **current_elastic_strains;           //現配置に対する弾性ひずみ
+    double **trial_elastic_strains;             //試行弾性ひずみ
+
+    double **stresses;                          //応力テンソル（フォークト表記）
+    double **current_stresses;                  //現配置に対する応力
+
+    double *equivalent_stresses;                    //相当応力
+    double *equivalent_plastic_strains;             //相当塑性ひずみ
+    double *equivalent_plastic_strain_increments;   //相当塑性ひずみ増分（塑性乗数）
+
+    double *yield_stresses;                         //降伏応力
+    double *current_yield_stresses;                 //現配置における降伏応力
+
+    double **back_stresses;                         //背応力
+    double **current_back_stresses;                 //現配置における背応力
+
+    double **nodal_displacements;                   //節点の変位
+    double **nodal_displacement_increments;         //節点の変位増分
+    double **nodal_stresses;                        //応力の節点値
+    double *nodal_equivalent_plastic_strains;       //相当塑性ひずみの節点値
+    double *nodal_yield_stresses;                   //降伏応力の節点値
+    double **nodal_back_stresses;                    //背応力の節点値
+
 } Subdomain;
 
 typedef struct

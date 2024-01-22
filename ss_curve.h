@@ -1,0 +1,1 @@
+double get_hardening_stress(double equivalent_plastic_strain);

@@ -3,6 +3,8 @@ CFLAGS = -Ofast -pipe
 .PHONY: solver
 TARGET = solver
 SRCS = main.c model.c
+SRCS += fpm.c field.c ss_curve.c
+SRCS += matrix.c
 OBJS = $(SRCS:.c=.o)
 
 $(TARGET): $(OBJS)

@@ -483,3 +483,28 @@ void Init_model()
     fclose(fp_point_ar_node);
     global.count = 0;
 }
+
+void break_model_memory(){
+    free(global.subdomain.ar_node);
+    free(global.subdomain.ar_node_offset);
+    free(global.bc.traction_face);
+    free(global.bc.traction_type);
+    free(global.bc.traction_point);
+    free(global.bc.Dirichlet_type);
+    free(global.bc.fixed_dir);
+    free(global.subdomain.support);
+    free(global.subdomain.support_offset);
+    free(global.subdomain.shared_face);
+    free(global.subdomain.pair_point_ib);
+    free(global.subdomain.node);
+    free(global.subdomain.vertex_offset);
+    free(global.subdomain.face);
+    free(global.subdomain.support);
+    free(global.subdomain.face_offset);
+    free(global.subdomain.center_XYZ);
+    free(global.subdomain.point_XYZ);
+    free(global.subdomain.subdomain_node);
+    free(global.subdomain.node_XYZ);
+    free(ss_curve.stress);
+    free(ss_curve.plastic_strain);   
+}
