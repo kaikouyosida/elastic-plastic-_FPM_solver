@@ -4,3 +4,4 @@ material_constant_setting.dat
 *.exe
 *.o
 README.md
+*.cmd

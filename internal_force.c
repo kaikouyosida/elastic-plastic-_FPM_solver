@@ -1,8 +1,18 @@
 #include<stdio.h>
 #include"type.h"
+#include"d_matrix.h"
+
 extern Global global;
 extern Option option;
 
+
+void zero_fill_displacement_increments(){
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        for(int i  = 0; i < option.dim; i++){
+            global.subdomain.displacement[point][i] = 0.;
+        }
+    }
+}
 
 void update_field_and_internal_forces(){
 
@@ -11,11 +21,19 @@ void update_field_and_internal_forces(){
     double inverse_relative_deformation_gradient[3][3];         //相対変形勾配テンソルの逆テンソル
     double relative_deformation_gradient[3][3];                 //相対変形勾配テンソル
     double elastic_strain_tensor[3][3];                         //弾性ひずみテンソル
+    double deformation_gradients[3][3];                         //変形勾配テンソル
+    double current_deformation_gradients[3][3];                 //現配置の変形勾配テンソル
     double elastic_left_cauchy_green_deformations[3][3];        //弾性左コーシーグリーンテンソル
     double trial_elastic_left_cauchy_green_deformations[3][3];  //試行弾性左コーシーグリーンテンソル
     double trial_relative_stresses[6];                          //試行相対応力
     double X[27][3];
     double w[27];                                               //ガウス求積に使う正規化座標と重み関数
+    double elastic_strains[6];                                  //弾性ひずみ
+    double current_elastic_strains[6];                          //現配置の弾性ひずみ
+    double trial_elastic_strains[6];                            //試行弾性ひずみ
+    double current_stresses[6];                                 //現配置の応力
+    double back_stresses[6];                                    //背応力
+    double current_back_stresses[6];                            //現配置の背応力
 
     //internal_forceをゼロ処理
     for(int i = 0; i < global.subdomain.N_point; i++){
@@ -33,18 +51,42 @@ void update_field_and_internal_forces(){
                 subdomain_internal_force[i][j] = 0.;
             }
         }
-
-    }
-
-
-
-
-}
-
-void zero_fill_displacement_increments(){
-    for(int point = 0; point < global.subdomain.N_point; point++){
-        for(int i  = 0; i < option.dim; i++){
-            global.subdomain.displacement[point][i] = 0.;
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                deformation_gradients[i][j] = global.subdomain.deformation_gradients[i][j][point];
+                current_deformation_gradients[i][j] = global.subdomain.current_deformation_gradients[i][j][point];           
+            }
         }
+        for(int i = 0; i < 6; i++){
+            elastic_strains[i] = global.subdomain.elastic_strains[point][i];
+            current_elastic_strains[i] = global.subdomain.current_elastic_strains[point][i];
+            trial_elastic_strains[i] = global.subdomain.trial_elastic_strains[point][i];
+            current_stresses[i] = global.subdomain.current_stresses[point][i];
+            back_stresses[i] = global.subdomain.back_stresses[point][i];
+            current_back_stresses[i] = global.subdomain.current_back_stresses[point][i];
+        }
+        double *equivalent_plastic_strain = &global.subdomain.equivalent_plastic_strains[point];
+        double *equivalent_plastic_strain_increment = &global.subdomain.equivalent_plastic_strain_increments[point];
+        double *yield_stress = &global.subdomain.yield_stresses[point];
+        double *current_yield_stress = &global.subdomain.current_yield_stresses[point];
+        double trial_relative_equivalent_stress;
+        double factor;
+        printf("status\n");
+        generateElasticDMatrix(d_matrix);
+        for(int i = 0; i < 6; i++){
+            for(int j = 0; j < 6; j++){
+                        printf("%+3.2e ",d_matrix[i][j]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+
+
+
     }
+
+
+
+
+
 }

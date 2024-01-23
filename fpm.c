@@ -18,6 +18,7 @@ void analize_by_NewtonRapdon(){
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){
             zero_fill_displacement_increments();
+            update_field_and_internal_forces();
             
         }
     }
