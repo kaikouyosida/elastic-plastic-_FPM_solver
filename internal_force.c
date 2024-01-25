@@ -1,22 +1,17 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<math.h>
 #include"type.h"
+#include"internal_force.h"
 #include"d_matrix.h"
 #include"b_matrix.h"
 #include"matrix.h"
 #include"tensor.h"
 #include"stress.h"
+#include"ss_curve.h"
 extern Global global;
 extern Option option;
 
-
-void zero_fill_displacement_increments(){
-    for(int point = 0; point < global.subdomain.N_point; point++){
-        for(int i  = 0; i < option.dim; i++){
-            global.subdomain.displacement[point][i] = 0.;
-        }
-    }
-}
 
 void update_field_and_internal_forces(){
     FILE *fp_debug;                                 //デバッグ用のファイル
@@ -43,7 +38,7 @@ void update_field_and_internal_forces(){
     double current_stresses[6];                                 //現配置の応力
     double back_stresses[6];                                    //背応力
     double current_back_stresses[6];                            //現配置の背応力
-
+    
     //internal_forceをゼロ処理
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
@@ -52,11 +47,12 @@ void update_field_and_internal_forces(){
     }
 
     for(int point = 0; point < global.subdomain.N_point; point++){
+       
         double kinematic_hardening_fractions = global.material.kinematic_hardening_fractions;
         
         double N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
         for(int i = 0 ; i < N_support; i++)
-            support[i] = global.subdomain.support[option.dim * global.subdomain.support_offset[point] + i];
+            support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
 
         //サブドメインの内力ベクトルをゼロ処理
         for(int i = 0; i < N_support; i++){
@@ -88,14 +84,16 @@ void update_field_and_internal_forces(){
         generate_linear_b_matrix(b_t_matrix, point);
         
         generateElasticDMatrix(d_matrix);
-
+        
         //相対変形勾配テンソルを計算。dF=(I-d(du)/d(x+u+du))^-1//
         identify3x3Matrix(inverse_relative_deformation_gradient);
+
+      
         //inverse_relative_deformation_gradientの対角項を計算
         for(int i = 0; i < N_support; i++){
             for(int j = 0; j < option.dim; j++)
                 displacement_increment[j] = global.subdomain.displacement_increment[support[i]][j];
-
+            
             for(int j = 0; j < option.dim; j++){
                 double displacement_increment_j
                     = displacement_increment[j];
@@ -105,6 +103,7 @@ void update_field_and_internal_forces(){
                                 *  displacement_increment_j;
             }
         }
+        
         for(int i = 0; i < option.dim; i++)
             displacement_increment[i] = global.subdomain.displacement[point][i];
         for(int j = 0; j < option.dim; j++){
@@ -112,7 +111,7 @@ void update_field_and_internal_forces(){
             inverse_relative_deformation_gradient[j][j] 
                 -= b_t_matrix[j][j] * displacement_increment_j;
         }
-
+        
         //inverse_relative_deformation_gradientの非対角項を計算
         for(int i = 0 ; i < N_support; i++){
             for(int j = 0; j < option.dim; j++)
@@ -168,7 +167,7 @@ void update_field_and_internal_forces(){
         elastic_strain_tensor[2][2] = 2.0 * elastic_strains[2];
         
         calculateTensorExponent(elastic_left_cauchy_green_deformations, elastic_strain_tensor);
-
+    
         //試行弾性左コーシーグリーンテンソルの計算
         for (int i = 0; i < 3; i++)
                     for (int j = 0; j < 3; j++)
@@ -192,8 +191,10 @@ void update_field_and_internal_forces(){
                         trial_elastic_left_cauchy_green_deformations[i][j]
                             = left_cauchy_green_deformation_i_j;
                     }
+        
         //試行弾性ひずみを計算（ {epsilon}^trial = 1/2 * ln([B]^trial)　
         calculateTensorLogarithm(elastic_strain_tensor, trial_elastic_left_cauchy_green_deformations);
+
         current_elastic_strains[0] = 0.5 * elastic_strain_tensor[0][0];
         current_elastic_strains[1] = 0.5 * elastic_strain_tensor[1][1];
         current_elastic_strains[2] = 0.5 * elastic_strain_tensor[2][2];
@@ -203,7 +204,7 @@ void update_field_and_internal_forces(){
                                             + elastic_strain_tensor[2][1]);
         current_elastic_strains[5] = 0.5 * (elastic_strain_tensor[2][0]
                                             + elastic_strain_tensor[0][2]);
-
+        
         for (int i = 0; i < 6; i++)
                 trial_elastic_strains[i]
                     = current_elastic_strains[i];
@@ -226,6 +227,7 @@ void update_field_and_internal_forces(){
         //試行相対相当応力の計算(sigma^trial_e)
         trial_relative_equivalent_stress
                 = calc_equivalent_stress(trial_relative_stresses);
+        
         if (trial_relative_equivalent_stress <= (*yield_stress))
             {   
                 *equivalent_plastic_strain_increment = 0.0;
@@ -233,15 +235,129 @@ void update_field_and_internal_forces(){
                 for (int i = 0; i < 6; i++)
                     current_back_stresses[i] = back_stresses[i];
             }else{
-                
-            }
+                double hardening_stress_increment;
+                double current_relative_hydrostatic_stress;
 
+                //相当塑性ひずみ増分の計算
+                *equivalent_plastic_strain
+                    = calc_equivalent_plastic_strain_increment(trial_relative_equivalent_stress,
+                                                                *equivalent_plastic_strain,
+                                                                *yield_stress);
+                //硬化応力増分の計算
+                hardening_stress_increment
+                    = get_hardening_stress((*equivalent_plastic_strain) + (*equivalent_plastic_strain_increment))
+                    - get_hardening_stress((*equivalent_plastic_strain));
+                
+                //試行相対偏差応力の計算
+                current_relative_hydrostatic_stress
+                    = (1.0 / 3.0)
+                    * (trial_relative_stresses[0]
+                       + trial_relative_stresses[1]
+                       + trial_relative_stresses[2]);
+                trial_relative_stresses[0] -= current_relative_hydrostatic_stress;
+                trial_relative_stresses[1] -= current_relative_hydrostatic_stress;
+                trial_relative_stresses[2] -= current_relative_hydrostatic_stress;
+
+
+                //最終的な弾性応力の計算
+                factor
+                    = (*equivalent_plastic_strain_increment)
+                    * 1.5
+                    / trial_relative_equivalent_stress;
+                for (int i = 0; i < 3; i++)
+                    current_elastic_strains[i]
+                        -= factor * trial_relative_stresses[i];
+                for (int i = 3; i < 6; i++)
+                    current_elastic_strains[i]
+                        -= 2.0 * factor * trial_relative_stresses[i];
+                
+                //最終的な降伏応力
+                *current_yield_stress
+                    = (*yield_stress)
+                    + (1.0 - kinematic_hardening_fractions)
+                    * hardening_stress_increment;
+                //最終的な背応力の計算
+                factor
+                    = kinematic_hardening_fractions
+                    * hardening_stress_increment
+                    / trial_relative_equivalent_stress;
+                for (int i = 0; i < 6; i++)
+                    current_back_stresses[i]
+                        = back_stresses[i]
+                        + factor * trial_relative_stresses[i];   
+                //最終的な応力の計算
+                factor
+                        = (*current_yield_stress)
+                        / trial_relative_equivalent_stress;
+                    for (int i = 0; i < 6; i++)
+                        current_stresses[i]
+                            = current_back_stresses[i]
+                            + factor * trial_relative_stresses[i];
+                current_stresses[0] += current_relative_hydrostatic_stress;
+                current_stresses[1] += current_relative_hydrostatic_stress;
+                current_stresses[2] += current_relative_hydrostatic_stress; 
+            }
+            //Kirchhoff応力からCauchy応力の計算
+            double inverse_volume_change
+                = 1.0 / calc_3x3matrix_determinant(current_deformation_gradients);
+            
+            for (int i = 0; i < 6; i++)
+                    current_stresses[i] *= inverse_volume_change;
+            
+            
     }        
     fclose(fp_debug);
     exit(0);
+}
 
+double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent_stress,
+                                                double equivalent_plastic_strain,
+                                                double yield_stress){
+        double tolerance = 1.0E-8 * yield_stress; /* Piecewise linear SS curve should give the exact solution */
+        int max_iteration_count = 100;
 
+        double three_times_shear_modulus
+        = 3.0 * 0.5 * global.material.E_mod / (1.0 + global.material.nu_mod);
 
+        double hardening_stress = get_hardening_stress(equivalent_plastic_strain);
 
+        double current_hardening_stress, current_hardening_modulus;
+        double residual, residual_gradient;
 
+        double dep = 0.0;
+
+        //Solve 3 * G * dep - (se - sy - (sh (ep + dep) - sh (ep))) = 0の求解
+    for (int i = 0; i < max_iteration_count; i++){
+        current_hardening_stress
+            = get_hardening_stress(equivalent_plastic_strain + dep);
+
+        residual
+            = three_times_shear_modulus * dep
+            - (trial_relative_equivalent_stress - yield_stress
+            - (current_hardening_stress - hardening_stress));
+
+        if (fabs(residual) <= tolerance)
+            return dep;
+
+        current_hardening_modulus
+            = get_hardening_stress(equivalent_plastic_strain + dep);
+
+        residual_gradient = three_times_shear_modulus + current_hardening_modulus;
+
+        dep -= residual / residual_gradient;
+    }
+
+#if 0
+    printError("Warning: equivalent plastic strain increment calculation iteration not converged\n");
+#endif
+
+    return nan("");
+}
+
+void zero_fill_displacement_increments(){
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        for(int i  = 0; i < option.dim; i++){
+            global.subdomain.displacement[point][i] = 0.;
+        }
+    }
 }

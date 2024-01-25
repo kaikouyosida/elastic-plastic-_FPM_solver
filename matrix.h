@@ -10,3 +10,4 @@ void trans_mat(int m, int n, double** X, double** XT);
 void inverse_mat(int mn, double** A, double** inverse_A);
 double calc_3x3matrix_norm(double (*matrix)[3]);
 void calc_3x3_matrix_square(double(*matrix_out)[3], double (*matrix_in)[3]);
+double calc_3x3matrix_determinant(double (*matrix)[3]);

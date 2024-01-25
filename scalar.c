@@ -39,3 +39,7 @@ void swapIntegers(int *value1, int *value2)
     *value1  = *value2;
     *value2  = temp;
 }
+/*
+* Calculate subdomain volume
+*/
+

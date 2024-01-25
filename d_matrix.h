@@ -1,1 +1,1 @@
-void generateElasticDMatrix(double d_matrix[6][6]);
+void generateElasticDMatrix(double (*d_matrix)[6]);
