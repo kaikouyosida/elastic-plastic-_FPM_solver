@@ -84,19 +84,19 @@ void init_field(){
     global.subdomain.current_back_stresses = matrix(global.subdomain.N_point, 6);
 
     //節点値をゼロ処理
-    global.subdomain.nodal_displacements = matrix(global.subdomain.N_point, option.dim);
-    global.subdomain.nodal_displacement_increments = matrix(global.subdomain.N_point, option.dim);
-    global.subdomain.nodal_stresses = matrix(global.subdomain.N_point, option.dim);
+    global.subdomain.nodal_displacements = matrix(global.subdomain.N_node, option.dim);
+    global.subdomain.nodal_displacement_increments = matrix(global.subdomain.N_node, option.dim);
+    global.subdomain.nodal_stresses = matrix(global.subdomain.N_node, option.dim);
 
-    if((global.subdomain.nodal_equivalent_plastic_strains = (double *)calloc(global.subdomain.N_point, sizeof(double))) == NULL){
+    if((global.subdomain.nodal_equivalent_plastic_strains = (double *)calloc(global.subdomain.N_node, sizeof(double))) == NULL){
         printf("Error: nodal_eq_plastic_strains's memory is not enough\n");
         exit(-1);
     }
-    if((global.subdomain.nodal_yield_stresses = (double *)calloc(global.subdomain.N_point, sizeof(double))) == NULL){
+    if((global.subdomain.nodal_yield_stresses = (double *)calloc(global.subdomain.N_node, sizeof(double))) == NULL){
         printf("Error: nodal_yield_stresses's memory is not enough\n");
         exit(-1);
     }
-    global.subdomain.nodal_back_stresses = matrix(global.subdomain.N_point, 6);
+    global.subdomain.nodal_back_stresses = matrix(global.subdomain.N_node, 6);
 
 }
 void break_field(){
