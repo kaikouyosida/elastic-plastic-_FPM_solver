@@ -2,6 +2,8 @@
 #include<stdlib.h>
 #include<math.h>
 
+#include"scalar.h"
+
 double** matrix(int m, int n){
 	double **A;
 	if((A=(double **)calloc(m,sizeof(double *))) == NULL){
@@ -248,4 +250,70 @@ double calc_3x3matrix_determinant(double (*matrix)[3])
         - matrix[0][0] * matrix[1][2] * matrix[2][1]
         - matrix[0][1] * matrix[1][0] * matrix[2][2]
         - matrix[0][2] * matrix[1][1] * matrix[2][0];
+}
+//法線ベクトルの計算
+void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6])
+{
+	double unit_n_vec[3]; // 単位法線ベクトル
+	double direction[3];  // サブドメインE1からE2の方へ向くベクトル
+	double norm_vec = 0.; // ベクトルの大きさ
+	int ref_offset = 0;	  // 面を分割するときの基準オフセット(3次元のときのみ使用)
+	double edge1[3];
+	double edge2[3]; // 面を分割してできた三角形の各辺のベクトル(3次元のみ)
+	double N_e[3]; //法線ベクトル
+
+	for (int i = 0; i < dim; i++)
+		direction[i] = center_xyz[dim * subdomain_n2 + i] - center_xyz[dim * subdomain_n1 + i];
+
+	if (dim == 2)
+	{	
+		unit_n_vec[0] = node_xyz[dim * node[vertex_offset[face]] + 1] - node_xyz[dim * node[vertex_offset[face] + 1] + 1];
+		unit_n_vec[1] = node_xyz[dim * node[vertex_offset[face] + 1]] - node_xyz[dim * node[vertex_offset[face]]];
+		norm_vec = norm(unit_n_vec, dim);
+		for (int i = 0; i < dim; i++)
+			unit_n_vec[i] /= norm_vec;
+
+		if (dot_product(dim, unit_n_vec, direction) < 0.)
+		{
+			for (int i = 0; i < dim; i++)
+				unit_n_vec[i] *= -1.0;
+		}
+
+		for (int i = 0; i < dim; i++)
+			N_e[i] = unit_n_vec[i];
+	}
+	else if (dim == 3)
+	{
+		for (int k = 0; k < dim; k++)
+			N_e[k] = 0.;
+
+		ref_offset = vertex_offset[face];
+		for (int i = ref_offset + 2; i < vertex_offset[face + 1]; i++)
+		{
+			for (int k = 0; k < dim; k++)
+				edge1[k] = node_xyz[dim * node[i - 1] + k] - node_xyz[dim * node[ref_offset] + k];
+			for (int k = 0; k < dim; k++)
+				edge2[k] = node_xyz[dim * node[i] + k] - node_xyz[dim * node[ref_offset] + k];
+
+			cross_product(dim, edge1, edge2, unit_n_vec);
+			norm_vec = norm(unit_n_vec, dim);
+			for (int k = 0; k < dim; k++)
+				unit_n_vec[k] /= norm_vec;
+
+			if (dot_product(dim, unit_n_vec, direction) < 0.)
+			{
+				for (int k = 0; k < dim; k++)
+					unit_n_vec[k] *= -1.0;
+			}
+
+			for (int k = 0; k < dim; k++)
+				N_e[k] += unit_n_vec[k];
+		}
+		for (int i = 0; i < dim; i++)
+			N_e[i] /= (double)(vertex_offset[face + 1] - ref_offset - 2);
+
+			N_matrix[0][0] = N_e[0];	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = N_e[1];		N_matrix[0][4] = 0.0;		N_matrix[0][5] = N_e[2];
+			N_matrix[1][0] = 0.0;       N_matrix[1][1] = N_e[1];	N_matrix[1][2] = 0.0;		N_matrix[1][3] = N_e[0];		N_matrix[1][4] = N_e[2]; 	N_matrix[1][5] = 0.0;
+			N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = N_e[2];	N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = N_e[1]; 	N_matrix[2][5] = N_e[0];	
+	}
 }

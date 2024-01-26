@@ -9,6 +9,8 @@
 #include"tensor.h"
 #include"stress.h"
 #include"ss_curve.h"
+#include"scalar.h"
+#include"GetGaussPoints.h"
 extern Global global;
 extern Option option;
 
@@ -38,6 +40,9 @@ void update_field_and_internal_forces(){
     double current_stresses[6];                                 //現配置の応力
     double back_stresses[6];                                    //背応力
     double current_back_stresses[6];                            //現配置の背応力
+    double **all_stress;                                        //各サブドメインにおける応力
+
+    all_stress = matrix(global.subdomain.N_point, 6);
     
     //internal_forceをゼロ処理
     for(int i = 0; i < global.subdomain.N_point; i++){
@@ -55,7 +60,7 @@ void update_field_and_internal_forces(){
             support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
 
         //サブドメインの内力ベクトルをゼロ処理
-        for(int i = 0; i < N_support; i++){
+        for(int i = 0; i < N_support + 1; i++){
             for(int j = 0; j < option.dim; j++){
                 subdomain_internal_force[i][j] = 0.;
             }
@@ -304,10 +309,32 @@ void update_field_and_internal_forces(){
             for (int i = 0; i < 6; i++)
                     current_stresses[i] *= inverse_volume_change;
             
+            double volume = calc_subdomain_volume(point);
             
-    }        
-    fclose(fp_debug);
-    exit(0);
+            //内力ベクトル一項目を計算（[B]^T * {sigma} * dV）
+            for(int i = 0; i < N_support + 1; i++){
+                for(int j = 0; j < option.dim; j++){
+                    double force_j = 0.;
+
+                    for(int k = 0; k < 6; k++)
+                        force_j += b_t_matrix[option.dim * i + j][k] * current_stresses[k];
+                    
+                    subdomain_internal_force[i][j] += force_j * volume;
+                }
+            }
+            for(int i = 0; i < N_support; i++){
+                for(int j = 0; j < option.dim; j++){
+                    global.subdomain.internal_force[support[i]][j] += subdomain_internal_force[i + 1][j];
+                }
+            }
+            for(int i = 0; i < option.dim; i++)
+                global.subdomain.internal_force[point][i] += subdomain_internal_force[0][i];
+            //各サブドメインにおける応力を記録（ペナルティ項の計算に用いる）
+            for(int i = 0; i < 6; i++)
+                all_stress[point][i] = current_stresses[i];
+    }
+    
+    //内力ベクトルのペナルティ項を計算（第3項を除く）
 }
 
 double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent_stress,
@@ -360,4 +387,35 @@ void zero_fill_displacement_increments(){
             global.subdomain.displacement[point][i] = 0.;
         }
     }
+}
+
+
+void calc_internal_force_penalty(double **all_stress,int N_qu){
+    double X[3];
+    double w[27];                                               //ガウス求積に使う正規化座標と重み関数
+    double xyz[3];                                              //求積点の座標
+    double Ne[3][6];                                            //内部境界の法線ベクトル
+    double N1[3][60], N2[3][60];                                //形状関数
+    double N1T[60][3], N2T[60][3];                              //形状関数の転置
+    int face_node[4];                                           //面を構成する節点
+    double face_node_XYZ[4][3];                                 //面を構成する節点の座標
+
+
+
+    Gauss_points_and_weighting_factors(N_qu, X, w);
+    for(int face = 0; face < global.subdomain.N_int_boundary; face++){
+        for(int i = 0; i < 4; i++)
+            face_node[i] = global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.shared_face[face] + i]];
+        
+        for(int i = 0; i < 4; i++)
+            for(int j = 0; j < option.dim; j++)
+                face_node_XYZ[i][j] = global.subdomain.node_XYZ[3 * face_node[i] + j] 
+                                    + global.subdomain.nodal_displacements[face_node[i]][j]
+                                    + global.subdomain.nodal_displacement_increments[face_node[i]][j];
+    }
+    
+
+
+
+
 }

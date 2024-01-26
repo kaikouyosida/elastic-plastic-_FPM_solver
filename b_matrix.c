@@ -159,3 +159,39 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     free_matrix(G);
     free(latest_point_XYZ);
 }
+
+// 形状関数を計算 //
+void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *support_offset, double (*shapeF_t)[3])
+{
+    int N_support = support_offset[point_n + 1] - support_offset[point_n]; // サポートドメインの数
+    double h[3];
+    double **G;
+    double **shapeF;
+
+    G = matrix(9, option.dim * global.subdomain.N_point + option.dim);
+    shapeF = matrix(3, option.dim * N_support + option.dim);
+
+    calc_G(dim, point_n, global.subdomain.point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+    for (int i = 0; i < dim; i++)
+        h[i] = xyz[i] - point_xyz[dim * point_n + i];
+
+    for (int i = 0; i < dim; i++)
+    {
+        for (int j = 0; j < N_support + 1; j++)
+        {
+            shapeF[i][dim * j + i] = h[0] * G[dim * i][dim * j + i];
+            for (int k = 1; k < dim; k++)
+                shapeF[i][dim * j + i] += h[k] * G[dim * i + k][dim * j + i];
+        }
+    }
+    for (int i = 0; i < dim; i++)
+        shapeF[i][i] += 1.0;
+    
+    for(int i = 0; i < 3 * N_support + 3; i++){
+        for(int j = 0; j < 3; j++){
+            shapeF_t[i][j] = shapeF[j][i];
+        }
+    }
+    free_matrix(shapeF);
+    free_matrix(G);
+}
