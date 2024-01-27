@@ -395,15 +395,39 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
     double w[27];                                               //ガウス求積に使う正規化座標と重み関数
     double xyz[3];                                              //求積点の座標
     double Ne[3][6];                                            //内部境界の法線ベクトル
-    double N1[3][60], N2[3][60];                                //形状関数
     double N1T[60][3], N2T[60][3];                              //形状関数の転置
+    double N1Tne[60][6], N2Tne[60][6];                          //形状関数と法線ベクトルの積
     int face_node[4];                                           //面を構成する節点
     double face_node_XYZ[4][3];                                 //面を構成する節点の座標
-
-
+    double *point_XYZ;                                          //ポイントの現在の座標
+    double *node_XYZ;                                           //節点の現在の座標
+    
+    //形状関数を計算するためのpoint, node現在座標を計算
+    if((point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error:point_XYZ's memory is not enough\n");
+        exit(-1);
+    }
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j = 0; j < option.dim; j++){
+            point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                                        + global.subdomain.displacement[i][j]
+                                        + global.subdomain.displacement_increment[i][j];
+        }
+    }
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim; j++){
+            node_XYZ[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j]
+                                        + global.subdomain.nodal_displacements[i][j]
+                                        + global.subdomain.nodal_displacement_increments[i][j];
+        }
+    }
 
     Gauss_points_and_weighting_factors(N_qu, X, w);
+
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
+        double N1_support = global.subdomain.support[global.subdomain.pair_point_ib[2 * face] + 1] - global.subdomain.support[global.subdomain.pair_point_ib[2 * face] + 1];
+        double N2_support = global.subdomain.support[global.subdomain.pair_point_ib[2 * face+ 1] + 1] - global.subdomain.support[global.subdomain.pair_point_ib[2 * face + 1] + 1];
+        
         for(int i = 0; i < 4; i++)
             face_node[i] = global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.shared_face[face] + i]];
         
@@ -412,10 +436,52 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                 face_node_XYZ[i][j] = global.subdomain.node_XYZ[3 * face_node[i] + j] 
                                     + global.subdomain.nodal_displacements[face_node[i]][j]
                                     + global.subdomain.nodal_displacement_increments[face_node[i]][j];
+        
+        for(int s = 0; s < N_qu; s++){
+            for(int t = 0; t < N_qu; t++){
+                for(int i = 0; i < option.dim; i++)
+                    xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
+                            + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
+                            + 0.25 * (1.0 + X[s]) * (1.0 + X[t]) * face_node_XYZ[2][i]
+                            + 0.25 * (1.0 + X[s]) * (1.0 - X[t]) * face_node_XYZ[3][i];
+                    
+                //形状関数の転置を計算
+                calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face], point_XYZ, global.subdomain.support_offset, N1T);
+                calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face + 1], point_XYZ, global.subdomain.support_offset, N2T);
+
+                //法線ベクトルを計算
+                calc_Ne(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1]
+                        , global.subdomain.shared_face[face], global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, point_XYZ, Ne);
+                
+                //形状関数と法線ベクトルの積を計算
+                for(int i = 0; i < N1_support; i++){
+                    for(int j = 0; j < 6; i++){
+                        double N1Tne_ij = 0.;
+                        for(int k = 0; k < option.dim; k++) N1Tne_ij += N1T[i][k] * Ne[k][j];
+                        N1Tne[i][j] = N1Tne_ij;
+                    }
+                }
+                for(int i = 0; i < N2_support; i++){
+                    for(int j = 0; j < 6; i++){
+                        double N2Tne_ij = 0.;
+                        for(int k = 0; k < option.dim; k++) N2Tne_ij += N2T[i][k] * Ne[k][j];
+                        N2Tne[i][j] = N2Tne_ij;
+                    }
+                }
+
+                
+                        
+            }
+        }
+        
+        
+
+        
+            
     }
     
 
 
-
-
+    free(node_XYZ);
+    free(point_XYZ);
 }
