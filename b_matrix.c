@@ -195,3 +195,39 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     free_matrix(shapeF);
     free_matrix(G);
 }
+
+void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
+    int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
+    double **G;
+    double *u;
+    double shapeF[3][60];
+    double shapeF_t[60][3];
+
+    if((u = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error:u's memory is not enough\n");
+        exit(-1);
+    }
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j = 0; j < option.dim; j++){
+            u[option.dim * i + j] = global.subdomain.displacement[i][j] + global.subdomain.displacement_increment[i][j];
+        }
+    }
+
+    G = matrix(9, option.dim * N_support + option.dim);
+    calc_G(option.dim, point_n, point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+
+    calc_shape(xyz, option.dim, point_n, point_XYZ, global.subdomain.support_offset, shapeF_t);
+
+    for(int i = 0; i < option.dim; i++)
+        u_h[i] = shapeF_t[i][i] * u[option.dim * point_n + i];
+    for(int i = 0; i < option.dim; i++){
+        double u_i = 0.;
+        for(int j = 0; j < N_support; j++){
+            u_i += shapeF_t[option.dim * (j + 1) + i][i] * u[option.dim * global.subdomain.support[global.subdomain.support_offset[point_n] + j] + i];
+        }
+        u_h[i] = u_i;
+    } 
+
+    free(u);
+    free_matrix(G);
+}

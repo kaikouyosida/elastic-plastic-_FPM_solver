@@ -8,3 +8,4 @@ void cross_product(int dim, double *vecA, double *vecB, double *AcrossB);
 double calc_subdomain_volume(int point_n);
 double calc_surface_area(int face_n);
 double norm(double *vec, int n);
+double distance(int dim, int i, int j, double *point_xyz);

@@ -168,3 +168,12 @@ double norm(double *vec, int n)
 	s = dot_product(n, vec, vec);
 	return sqrt(s);
 }
+double distance(int dim, int i, int j, double *point_xyz)
+{
+	double d = 0.;
+	for (int k = 0; k < dim; k++)
+		d += point_xyz[dim * i + k] * point_xyz[dim * i + k] + point_xyz[dim * j + k] * point_xyz[dim * j + k];
+	for (int k = 0; k < dim; k++)
+		d -= 2.0 * point_xyz[dim * i + k] * point_xyz[dim * j + k];
+	return sqrt(d);
+}
