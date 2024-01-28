@@ -335,6 +335,7 @@ void update_field_and_internal_forces(){
     }
     //内力ベクトルのペナルティ項を計算（安定化項を除く）
     calc_internal_force_penalty(all_stress, 1);
+    calc_internal_force_penalty_stabilization(2);
  
     for(int i = 0; i < global.subdomain.N_point; i++)
         for(int j = 0; j < option.dim; j++){
@@ -617,7 +618,34 @@ void calc_internal_force_penalty_stabilization(int N_qu){
                     for(int j = 0; j < option.dim; j++){
                         subdomain_internal_force_i += N1T[i][j] * (u1[j] - u2[j]);
                     }
+                    subdomain_internal_force[i] = subdomain_internal_force_i;
                 }
+                for(int i = 0; i < N1_support; i++){
+                    for(int j = 0; j < option.dim; j++){
+                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]] + i]][j]
+                        += eta / he * subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
+                    }
+                }
+                for(int i = 0 ; i < option.dim; i++)
+                    global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face]][i]
+                        +=  eta / he * subdomain_internal_force[i] * jacobian * w[s] * w[t];
+
+                for(int i = 0; i < option.dim * (N2_support + 1); i++){
+                    double subdomain_internal_force_i = 0.;
+                    for(int j = 0; j < option.dim; j++){
+                        subdomain_internal_force_i += -N2T[i][j] * (u1[j] - u2[j]);
+                    }
+                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                }
+                for(int i = 0; i < N2_support; i++){
+                    for(int j = 0; j < option.dim; j++){
+                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1]] + i]][j]
+                        += eta / he * subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
+                    }
+                }
+                for(int i = 0 ; i < option.dim; i++)
+                    global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face + 1]][i]
+                        +=  eta / he * subdomain_internal_force[i] * jacobian * w[s] * w[t];
                 
                 
             }

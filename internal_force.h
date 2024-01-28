@@ -4,3 +4,4 @@ double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent
                                                 double equivalent_plastic_strain,
                                                 double yield_stress);
 void calc_internal_force_penalty(double **all_stress,int N_qu);
+void calc_internal_force_penalty_stabilization(int N_qu);
