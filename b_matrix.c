@@ -169,7 +169,7 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     double **shapeF;
 
     G = matrix(9, option.dim * global.subdomain.N_point + option.dim);
-    shapeF = matrix(3, option.dim * N_support + option.dim);
+    shapeF = matrix(option.dim, option.dim * N_support + option.dim);
 
     calc_G(dim, point_n, global.subdomain.point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
     for (int i = 0; i < dim; i++)

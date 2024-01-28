@@ -107,6 +107,43 @@ double calc_subdomain_volume(int point_n){
         volume /= 6.0;
         return volume;
 }
+//内部境界を二分割して和をとることで面積を求める
+double calc_surface_area(int face_n){
+    int ref_num = global.subdomain.vertex_offset[face_n];
+    int subdomain_node[60];
+    double edge1[3],edge2[3];           //辺のベクトル
+    double edge1_cross_edge2[3];        //ベクトル同士の外積
+    double area1, area2;                //2つの分割したそれぞれの面積
+
+    int node1 = global.subdomain.node[ref_num];
+    int node2 = global.subdomain.node[ref_num + 1];
+    int node3 = global.subdomain.node[ref_num + 2];
+    int node4 = global.subdomain.node[ref_num + 3];
+
+    for(int i = 0; i < option.dim; i++){
+        edge1[i] = (global.subdomain.node_XYZ[option.dim * node4 + i] - global.subdomain.node_XYZ[option.dim * node1 + i]
+                    + global.subdomain.nodal_displacements[node4][i] - global.subdomain.nodal_displacements[node1][i]
+                    + global.subdomain.nodal_displacement_increments[node4][i] - global.subdomain.nodal_displacement_increments[node1][i]);
+        edge2[i] = (global.subdomain.node_XYZ[option.dim * node2 + i] - global.subdomain.node_XYZ[option.dim * node1 + i]
+                    + global.subdomain.nodal_displacements[node2][i] - global.subdomain.nodal_displacements[node1][i]
+                    + global.subdomain.nodal_displacement_increments[node2][i] - global.subdomain.nodal_displacement_increments[node1][i]);
+    }
+    cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+    area1 = 0.5 * sqrt(norm(edge1_cross_edge2, option.dim));
+
+    for(int i = 0; i < option.dim; i++){
+        edge1[i] = (global.subdomain.node_XYZ[option.dim * node4 + i] - global.subdomain.node_XYZ[option.dim * node3 + i]
+                    + global.subdomain.nodal_displacements[node4][i] - global.subdomain.nodal_displacements[node3][i]
+                    + global.subdomain.nodal_displacement_increments[node4][i] - global.subdomain.nodal_displacement_increments[node3][i]);
+        edge2[i] = (global.subdomain.node_XYZ[option.dim * node2 + i] - global.subdomain.node_XYZ[option.dim * node3 + i]
+                    + global.subdomain.nodal_displacements[node2][i] - global.subdomain.nodal_displacements[node3][i]
+                    + global.subdomain.nodal_displacement_increments[node2][i] - global.subdomain.nodal_displacement_increments[node3][i]);
+    }
+    cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+    area2 = 0.5 * sqrt(norm(edge1_cross_edge2, option.dim));
+
+    return area1 + area2;
+}
 double dot_product(int N, double *vec1, double *vec2)
 {
 	double X = 0.;

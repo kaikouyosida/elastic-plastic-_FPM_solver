@@ -333,8 +333,18 @@ void update_field_and_internal_forces(){
             for(int i = 0; i < 6; i++)
                 all_stress[point][i] = current_stresses[i];
     }
-    
     //内力ベクトルのペナルティ項を計算（第3項を除く）
+    calc_internal_force_penalty(all_stress, 1);
+    for(int i = 0; i < global.subdomain.N_point; i++)
+        for(int j = 0; j < option.dim; j++){
+            fprintf(fp_debug, "%+15.14e\n", global.subdomain.global_internal_force[i][j]);
+        }
+    fclose(fp_debug);
+    exit(0);
+            
+
+
+    free_matrix(all_stress);
 }
 
 double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent_stress,
@@ -391,14 +401,16 @@ void zero_fill_displacement_increments(){
 
 
 void calc_internal_force_penalty(double **all_stress,int N_qu){
-    double X[3];
+    double X[27];
     double w[27];                                               //ガウス求積に使う正規化座標と重み関数
     double xyz[3];                                              //求積点の座標
     double Ne[3][6];                                            //内部境界の法線ベクトル
     double N1T[60][3], N2T[60][3];                              //形状関数の転置
     double N1Tne[60][6], N2Tne[60][6];                          //形状関数と法線ベクトルの積
+    double subdomain_internal_force[60];                        //サブドメインごとの内力ベクトル
     int face_node[4];                                           //面を構成する節点
     double face_node_XYZ[4][3];                                 //面を構成する節点の座標
+    double jacobian;                                            //ヤコビアン
     double *point_XYZ;                                          //ポイントの現在の座標
     double *node_XYZ;                                           //節点の現在の座標
     
@@ -407,6 +419,11 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
         printf("Error:point_XYZ's memory is not enough\n");
         exit(-1);
     }
+    if((node_XYZ = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){
+        printf("Error:node_XYZ's memory is not enough\n");
+        exit(-1);
+    }
+
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
             point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
@@ -421,22 +438,25 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                                         + global.subdomain.nodal_displacement_increments[i][j];
         }
     }
-
+    printf("status1\n");
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
-        double N1_support = global.subdomain.support[global.subdomain.pair_point_ib[2 * face] + 1] - global.subdomain.support[global.subdomain.pair_point_ib[2 * face] + 1];
-        double N2_support = global.subdomain.support[global.subdomain.pair_point_ib[2 * face+ 1] + 1] - global.subdomain.support[global.subdomain.pair_point_ib[2 * face + 1] + 1];
-        
+        jacobian = calc_surface_area(global.subdomain.shared_face[face]) / 4.0;
+
+        int N1_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face] + 1]
+                        - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]];
+        int N2_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1] + 1] 
+                        - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1]]; 
+
         for(int i = 0; i < 4; i++)
             face_node[i] = global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.shared_face[face] + i]];
         
         for(int i = 0; i < 4; i++)
             for(int j = 0; j < option.dim; j++)
-                face_node_XYZ[i][j] = global.subdomain.node_XYZ[3 * face_node[i] + j] 
-                                    + global.subdomain.nodal_displacements[face_node[i]][j]
-                                    + global.subdomain.nodal_displacement_increments[face_node[i]][j];
-        
+                face_node_XYZ[i][j] = node_XYZ[option.dim * face_node[i] + j];
+                
+        //内部境界上での積分
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
                 for(int i = 0; i < option.dim; i++)
@@ -444,24 +464,29 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
                             + 0.25 * (1.0 + X[s]) * (1.0 + X[t]) * face_node_XYZ[2][i]
                             + 0.25 * (1.0 + X[s]) * (1.0 - X[t]) * face_node_XYZ[3][i];
-                    
+
+                printf("status2\n");
                 //形状関数の転置を計算
                 calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face], point_XYZ, global.subdomain.support_offset, N1T);
                 calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face + 1], point_XYZ, global.subdomain.support_offset, N2T);
-
+                printf("status2.25\n");
                 //法線ベクトルを計算
                 calc_Ne(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1]
                         , global.subdomain.shared_face[face], global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, point_XYZ, Ne);
-                
+                printf("status2.5\n");
                 //形状関数と法線ベクトルの積を計算
-                for(int i = 0; i < N1_support; i++){
+                for(int i = 0; i < option.dim * (N1_support + 1); i++){
+                    
                     for(int j = 0; j < 6; i++){
                         double N1Tne_ij = 0.;
-                        for(int k = 0; k < option.dim; k++) N1Tne_ij += N1T[i][k] * Ne[k][j];
+                        for(int k = 0; k < option.dim; k++){
+                            N1Tne_ij += N1T[i][k] * Ne[k][j];
+                        }
                         N1Tne[i][j] = N1Tne_ij;
                     }
                 }
-                for(int i = 0; i < N2_support; i++){
+                printf("status2.75\n");
+                for(int i = 0; i < option.dim * (N2_support + 1); i++){
                     for(int j = 0; j < 6; i++){
                         double N2Tne_ij = 0.;
                         for(int k = 0; k < option.dim; k++) N2Tne_ij += N2T[i][k] * Ne[k][j];
@@ -469,15 +494,47 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                     }
                 }
 
-                
-                        
+                printf("status3\n");
+                for(int i = 0; i < option.dim * (N1_support + 1); i++){
+                    double subdomain_internal_force_i = 0.;
+                    for(int j = 0; j < 6; i++){
+                        subdomain_internal_force_i += -0.5 * (N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face]][j]
+                                                        + N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
+                    }
+                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                }
+                for(int i = 0; i < N1_support; i++){
+                    for(int j = 0; j < option.dim; j++){
+                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face] + i]]][j]
+                        += subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
+                    }
+                }
+                for(int i = 0 ; i < option.dim; i++)
+                    global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face]][i]
+                        += subdomain_internal_force[i] * jacobian * w[s] * w[t];
+                printf("status4\n");
+
+                for(int i = 0; i < option.dim * (N2_support + 1); i++){
+                    double subdomain_internal_force_i = 0.;
+                    for(int j = 0; j < 6; i++){
+                        subdomain_internal_force_i += 0.5 * (N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face]][j]
+                                                        + N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
+                    }
+                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                }
+                for(int i = 0; i < N2_support; i++){
+                    for(int j = 0; j < option.dim; j++){
+                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1] + i]]][j]
+                        += subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
+                    }
+                }
+                for(int i = 0 ; i < option.dim; i++)
+                    global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face + 1]][i]
+                        += subdomain_internal_force[i] * jacobian * w[s] * w[t];
+ 
             }
         }
-        
-        
-
-        
-            
+       
     }
     
 
