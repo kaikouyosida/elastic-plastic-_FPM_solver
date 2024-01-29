@@ -12,6 +12,7 @@ extern Option option;
 void analize_by_NewtonRapdon(){
     double time;
     double time_increment;
+    double residual_norm;
     init_field();
     
     time_increment = option.Delta_time;
@@ -21,6 +22,11 @@ void analize_by_NewtonRapdon(){
             zero_fill_displacement_increments();
             update_field_and_internal_forces();
             update_external_force(time_step);
+
+            residual_norm = calc_global_force_residual_norm();
+            if(residual_norm <= option.NR_tol) break;
+
+
             
         }
     }

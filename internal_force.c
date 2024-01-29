@@ -645,3 +645,23 @@ void calc_internal_force_penalty_stabilization(int N_qu){
     free(node_XYZ);
     free(point_XYZ);
 }
+
+double calc_global_force_residual_norm(){
+    double global_f_norm = 0., global_r_norm = 0.;
+
+    for(int i = 0; i < global.subdomain.N_point; i++)
+        for(int j = 0; j < option.dim; j++)
+            global.subdomain.global_residual_force[i][j]
+                 = global.subdomain.global_internal_force[i][j] - global.subdomain.global_external_force[i][j];
+    
+    //ノルムの計算
+    for(int i = 0; i < global.subdomain.N_point; i++)
+        for(int j = 0; j < option.dim; j++){
+            global_f_norm += global.subdomain.global_external_force[i][j] * global.subdomain.global_external_force[i][j];
+            global_r_norm += global.subdomain.global_residual_force[i][j] * global.subdomain.global_residual_force[i][j];
+        }
+    global_f_norm = sqrt(global_f_norm);
+    global_r_norm = sqrt(global_r_norm);
+    
+    return global_r_norm / global_f_norm;
+}

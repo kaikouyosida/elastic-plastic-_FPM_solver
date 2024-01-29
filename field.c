@@ -13,6 +13,9 @@ void init_field(){
     global.subdomain.displacement = matrix(global.subdomain.N_point, option.dim);
     global.subdomain.displacement_increment = matrix(global.subdomain.N_point, option.dim);
 
+    //残差ベクトル{r} = {Fint} - λ{Fext}の計算
+    global.subdomain.global_residual_force = matrix(global.subdomain.N_point, option.dim);
+
     //外力ベクトルをゼロ処理
     global.subdomain.external_force = matrix(global.subdomain.N_point, option.dim);
     global.subdomain.global_external_force = matrix(global.subdomain.N_point, option.dim);
@@ -126,6 +129,7 @@ void break_field(){
     free_matrix(global.subdomain.previous_global_external_force);
     free_matrix(global.subdomain.global_external_force);
     free_matrix(global.subdomain.external_force);
+    free_matrix(global.subdomain.global_residual_force);
     free_matrix(global.subdomain.displacement_increment);
     free_matrix(global.subdomain.displacement);
 }
