@@ -4,6 +4,7 @@
 #include"fpm.h"
 #include"field.h"
 #include"internal_force.h"
+#include"external_force.h"
 
 extern Global global;
 extern Option option;
@@ -19,6 +20,7 @@ void analize_by_NewtonRapdon(){
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){
             zero_fill_displacement_increments();
             update_field_and_internal_forces();
+            update_external_force(time_step);
             
         }
     }

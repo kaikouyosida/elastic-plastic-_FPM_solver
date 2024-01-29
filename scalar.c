@@ -129,7 +129,7 @@ double calc_surface_area(int face_n){
                     + global.subdomain.nodal_displacement_increments[node2][i] - global.subdomain.nodal_displacement_increments[node1][i]);
     }
     cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
-    area1 = 0.5 * sqrt(norm(edge1_cross_edge2, option.dim));
+    area1 = 0.5 * norm(edge1_cross_edge2, option.dim);
 
     for(int i = 0; i < option.dim; i++){
         edge1[i] = (global.subdomain.node_XYZ[option.dim * node4 + i] - global.subdomain.node_XYZ[option.dim * node3 + i]
@@ -140,7 +140,7 @@ double calc_surface_area(int face_n){
                     + global.subdomain.nodal_displacement_increments[node2][i] - global.subdomain.nodal_displacement_increments[node3][i]);
     }
     cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
-    area2 = 0.5 * sqrt(norm(edge1_cross_edge2, option.dim));
+    area2 = 0.5 * norm(edge1_cross_edge2, option.dim);
 
     return area1 + area2;
 }

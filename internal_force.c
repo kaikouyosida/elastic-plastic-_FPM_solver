@@ -16,9 +16,7 @@ extern Option option;
 
 
 void update_field_and_internal_forces(){
-    FILE *fp_debug;                                 //デバッグ用のファイル
-    fp_debug = fopen("debag.dat", "w");
-
+    
     double subdomain_internal_force[20][3];
     double d_matrix[6][6];          //Dマトリクス
     double inverse_relative_deformation_gradient[3][3];         //相対変形勾配テンソルの逆テンソル
@@ -333,17 +331,9 @@ void update_field_and_internal_forces(){
             for(int i = 0; i < 6; i++)
                 all_stress[point][i] = current_stresses[i];
     }
-    //内力ベクトルのペナルティ項を計算（安定化項を除く）
+    //内力ベクトルのペナルティ項を計算
     calc_internal_force_penalty(all_stress, 1);
     calc_internal_force_penalty_stabilization(2);
- 
-    for(int i = 0; i < global.subdomain.N_point; i++)
-        for(int j = 0; j < option.dim; j++){
-            fprintf(fp_debug, "%+15.14e\n", global.subdomain.global_internal_force[i][j]);
-        }
-    fclose(fp_debug);
-    exit(0);
-            
 
 
     free_matrix(all_stress);
@@ -523,7 +513,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
     
                 for(int i = 0; i < N2_support; i++){
                     for(int j = 0; j < option.dim; j++){
-                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1] ] + i]][j]
+                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1]] + i]][j]
                         += subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];
                     }
                 }
