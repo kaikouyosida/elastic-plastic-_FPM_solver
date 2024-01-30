@@ -9,3 +9,4 @@ double calc_subdomain_volume(int point_n);
 double calc_surface_area(int face_n);
 double norm(double *vec, int n);
 double distance(int dim, int i, int j, double *point_xyz);
+double calculate3x3MatrixTrace(double matrix[3][3]);

@@ -46,6 +46,11 @@ void swapIntegers(int *value1, int *value2)
     *value1  = *value2;
     *value2  = temp;
 }
+
+double calculate3x3MatrixTrace(double matrix[3][3])
+{
+    return matrix[0][0] + matrix[1][1] + matrix[2][2];
+}
 /*
 * Calculate subdomain volume
 */

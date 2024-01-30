@@ -251,6 +251,23 @@ double calc_3x3matrix_determinant(double (*matrix)[3])
         - matrix[0][1] * matrix[1][0] * matrix[2][2]
         - matrix[0][2] * matrix[1][1] * matrix[2][0];
 }
+void calculate3x3MatrixSquare(double matrix_out[3][3],
+                              double matrix_in[3][3])
+{
+    int i, j, k;
+
+    for (i = 0; i < 3; i++)
+        for (j = 0; j < 3; j++)
+        {
+            double temp = 0.0;
+
+            for (k = 0; k < 3; k++)
+                temp
+                    += matrix_in[i][k] * matrix_in[k][j];
+
+            matrix_out[i][j] = temp;
+        }
+}
 //法線ベクトルの計算
 void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6])
 {

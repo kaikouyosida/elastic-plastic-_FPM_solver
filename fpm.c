@@ -3,6 +3,7 @@
 #include"type.h"
 #include"fpm.h"
 #include"field.h"
+#include"coefficient_matrix.h"
 #include"internal_force.h"
 #include"external_force.h"
 
@@ -25,7 +26,7 @@ void analize_by_NewtonRapdon(){
 
             residual_norm = calc_global_force_residual_norm();
             if(residual_norm <= option.NR_tol) break;
-
+            generate_coefficient_matrix();
 
             
         }

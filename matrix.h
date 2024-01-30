@@ -5,6 +5,8 @@ void free_tensor(double ***A);
 void identify3x3Matrix(double (*matrix)[3]);
 void zeroize3x3Matrix(double (*matrix)[3]);
 void inverse_mat3x3(int dim, double (*A)[3], double (*inverse_A)[3]);
+void calculate3x3MatrixSquare(double matrix_out[3][3],
+                              double matrix_in[3][3]);
 void multi_mat(int Am, int Bn, double** A, double** B, int AnBm, double** X);
 void trans_mat(int m, int n, double** X, double** XT);
 void inverse_mat(int mn, double** A, double** inverse_A);

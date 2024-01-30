@@ -1,8 +1,16 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include"type.h"
+#include"tensor.h"
+#include"matrix.h"
+
 extern Global global;
 extern Option option;
+
+static const double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
+                                             {0.0, 1.0, 0.0},
+                                             {0.0, 0.0, 1.0}};
+
 
 void generateElasticDMatrix(double (*d_matrix)[6]){
     double young_modulus
@@ -37,4 +45,96 @@ void generateElasticDMatrix(double (*d_matrix)[6]){
 
     d_matrix[5][0] = 0.0; d_matrix[5][1] = 0.0; d_matrix[5][2] = 0.0;
     d_matrix[5][3] = 0.0; d_matrix[5][4] = 0.0; d_matrix[5][5] = d33;
+}
+
+void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_stresses, double *trial_elastic_strains, double (*current_deformation_gradient)[3]){
+    double consistent_d_tensor[3][3][3][3];
+    double d_tensor[3][3][3][3];
+    double l_tensor[3][3][3][3];
+    double b_tensor[3][3][3][3];
+    double current_stress_tensor[3][3];
+    double trial_elastic_left_cauchy_green_deformations[3][3];
+    double trial_elastic_strain_tensor[3][3];
+    double inverse_volume_change;
+
+    //DマトリクスからDテンソルへ変換
+    convertSymmetric4thOrderMatrixToTensor(d_tensor, d_matrix);
+
+    //試行弾性左コーシーグリーンテンソルの計算
+    trial_elastic_strain_tensor[0][0] = 2.0 * trial_elastic_strains[0];
+    trial_elastic_strain_tensor[0][1] = 2.0 * 0.5 * trial_elastic_strains[3];
+    trial_elastic_strain_tensor[0][2] = 2.0 * 0.5 * trial_elastic_strains[5];
+    trial_elastic_strain_tensor[1][0] = 2.0 * 0.5 * trial_elastic_strains[3];
+    trial_elastic_strain_tensor[1][1] = 2.0 * trial_elastic_strains[1];
+    trial_elastic_strain_tensor[1][2] = 2.0 * 0.5 * trial_elastic_strains[4];
+    trial_elastic_strain_tensor[2][0] = 2.0 * 0.5 * trial_elastic_strains[5];
+    trial_elastic_strain_tensor[2][1] = 2.0 * 0.5 * trial_elastic_strains[4];
+    trial_elastic_strain_tensor[2][2] = 2.0 * trial_elastic_strains[2];
+
+    calculateTensorExponent(trial_elastic_left_cauchy_green_deformations,
+                            trial_elastic_strain_tensor);
+    
+    //[L] = d(ln([B]^trial))/d[B]^trialの計算
+    calculateTensorLogarithmDerivative(l_tensor,
+                                       trial_elastic_left_cauchy_green_deformations);
+
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            for (int k = 0; k < 3; k++)
+                for (int l = 0; l < 3; l++)
+                    b_tensor[i][j][k][l]
+                        = identity_tensor[i][k] * trial_elastic_left_cauchy_green_deformations[j][l]
+                        + identity_tensor[j][k] * trial_elastic_left_cauchy_green_deformations[i][l];
+    
+    //応力をvoigt表記からテンソル表記へ変換
+    current_stress_tensor[0][0] = current_stresses[0];
+    current_stress_tensor[0][1] = current_stresses[3];
+    current_stress_tensor[0][2] = current_stresses[5];
+    current_stress_tensor[1][0] = current_stresses[3];
+    current_stress_tensor[1][1] = current_stresses[1];
+    current_stress_tensor[1][2] = current_stresses[4];
+    current_stress_tensor[2][0] = current_stresses[5];
+    current_stress_tensor[2][1] = current_stresses[4];
+    current_stress_tensor[2][2] = current_stresses[2];
+
+    inverse_volume_change = 1.0 / calc_3x3matrix_determinant(current_deformation_gradient);
+
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            for (int k = 0; k < 3; k++)
+                for (int l = 0; l < 3; l++)
+                {
+                    double d_i_j_k_l = 0.0;
+
+                    for (int ii = 0; ii < 3; ii++)
+                        for (int jj = 0; jj < 3; jj++)
+                        {
+                            double d_ii_jj_kk_ll_times_b_kk_ll_k_l = 0.0;
+
+                            for (int kk = 0; kk < 3; kk++)
+                                for (int ll = 0; ll < 3; ll++)
+                                    d_ii_jj_kk_ll_times_b_kk_ll_k_l
+                                        += l_tensor[ii][jj][kk][ll]
+                                        *  b_tensor[kk][ll][k][l];
+
+                            d_i_j_k_l
+                                += d_tensor[i][j][ii][jj]
+                                *  d_ii_jj_kk_ll_times_b_kk_ll_k_l;
+                        }
+
+                    d_i_j_k_l
+                        *= 0.5 * inverse_volume_change;
+
+                    d_i_j_k_l
+                        -= current_stress_tensor[i][l] * identity_tensor[j][k];
+                    d_i_j_k_l
+                        -= current_stress_tensor[j][l] * identity_tensor[i][k];
+
+                    consistent_d_tensor[i][j][k][l]
+                        = d_i_j_k_l;
+                }
+
+    //Dマトリクスをテンソルからマトリクスに変換
+    convertSymmetric4thOrderTensorToMatrix(d_matrix,
+                                           consistent_d_tensor);
 }
