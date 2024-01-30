@@ -6,7 +6,7 @@ SRCS = main.c model.c
 SRCS += fpm.c field.c ss_curve.c
 SRCS += internal_force.c d_matrix.c b_matrix.c stress.c
 SRCS += external_force.c
-SRCS += coefficient_matrix.c
+SRCS += coefficient_matrix.c s_matrix.c
 SRCS += matrix.c vector.c tensor.c scalar.c GetGaussPoints.c
 OBJS = $(SRCS:.c=.o)
 

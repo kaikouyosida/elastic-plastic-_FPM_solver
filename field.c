@@ -13,6 +13,12 @@ void init_field(){
     global.subdomain.displacement = matrix(global.subdomain.N_point, option.dim);
     global.subdomain.displacement_increment = matrix(global.subdomain.N_point, option.dim);
 
+    //全体剛性マトリクスをゼロ処理
+    if((global.subdomain.Global_K = (double *)calloc(option.dim * global.subdomain.N_point * option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error:Global_K's memory is not enough\n");
+        exit(-1);
+    }
+
     //残差ベクトル{r} = {Fint} - λ{Fext}の計算
     global.subdomain.global_residual_force = matrix(global.subdomain.N_point, option.dim);
 
@@ -130,6 +136,7 @@ void break_field(){
     free_matrix(global.subdomain.global_external_force);
     free_matrix(global.subdomain.external_force);
     free_matrix(global.subdomain.global_residual_force);
+    free(global.subdomain.Global_K);
     free_matrix(global.subdomain.displacement_increment);
     free_matrix(global.subdomain.displacement);
 }

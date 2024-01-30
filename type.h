@@ -56,6 +56,8 @@ typedef struct
     double **displacement;              //ポイントごとの変位
     double **displacement_increment;    //ポイントごとの変位の増分
 
+    double *Global_K;                           //全体剛性マトリクス
+    
     double **global_residual_force;             //全体の残差ベクトル
 
     double **external_force;                    //外力ベクトル

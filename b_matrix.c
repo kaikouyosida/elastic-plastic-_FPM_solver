@@ -160,6 +160,46 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     free(latest_point_XYZ);
 }
 
+double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
+    double **G;
+    double N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
+    double *latest_point_XYZ;
+
+    if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        exit(-1);
+    }
+    G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
+
+
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j = 0; j < option.dim; j++){
+            latest_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                    + global.subdomain.displacement[i][j]
+                    + global.subdomain.displacement_increment[i][j];
+        }
+    }
+
+    calc_G(option.dim, point_n, latest_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+
+    for (int i = 0; i < N_support + 1; i++)
+        for (int j = 0; j < option.dim; j++)
+        {
+            const double dn_dx_j_i = G[j][option.dim * i];
+
+            b_t_matrix[3 * i    ][3 * j]     = dn_dx_j_i;
+            b_t_matrix[3 * i    ][3 * j + 1] = 0.0;
+            b_t_matrix[3 * i    ][3 * j + 2] = 0.0;
+
+            b_t_matrix[3 * i + 1][3 * j]     = 0.0;
+            b_t_matrix[3 * i + 1][3 * j + 1] = dn_dx_j_i;
+            b_t_matrix[3 * i + 1][3 * j + 2] = 0.0;
+
+            b_t_matrix[3 * i + 2][3 * j]     = 0.0;
+            b_t_matrix[3 * i + 2][3 * j + 1] = 0.0;
+            b_t_matrix[3 * i + 2][3 * j + 2] = dn_dx_j_i;
+        }
+}
+
 // 形状関数を計算 //
 void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *support_offset, double (*shapeF_t)[3])
 {
