@@ -1,8 +1,10 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
-
+#include"type.h"
 #include"scalar.h"
+
+extern Option option;
 
 double** matrix(int m, int n){
 	double **A;
@@ -333,4 +335,15 @@ void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_
 			N_matrix[1][0] = 0.0;       N_matrix[1][1] = N_e[1];	N_matrix[1][2] = 0.0;		N_matrix[1][3] = N_e[0];		N_matrix[1][4] = N_e[2]; 	N_matrix[1][5] = 0.0;
 			N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = N_e[2];	N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = N_e[1]; 	N_matrix[2][5] = N_e[0];	
 	}
+}
+void calc_Ne_diagonal(int dim , int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*Ne_d)[9]){
+	double Ne[3][6];
+	calc_Ne(option.dim, subdomain_n1, subdomain_n2, face, vertex_offset, node, node_xyz, center_xyz, Ne);
+
+	for(int i = 0; i < option.dim; i++){
+		for(int j = 0; j < option.dim; j++){
+			Ne_d[i][option.dim * i + j] = Ne[j][j];
+		}
+	}
+
 }

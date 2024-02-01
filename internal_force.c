@@ -90,7 +90,6 @@ void update_field_and_internal_forces(){
         
         //相対変形勾配テンソルを計算。dF=(I-d(du)/d(x+u+du))^-1//
         identify3x3Matrix(inverse_relative_deformation_gradient);
-
       
         //inverse_relative_deformation_gradientの対角項を計算
         for(int i = 0; i < N_support; i++){
