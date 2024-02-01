@@ -108,7 +108,7 @@ void update_field_and_internal_forces(){
         }
         
         for(int i = 0; i < option.dim; i++)
-            displacement_increment[i] = global.subdomain.displacement[point][i];
+            displacement_increment[i] = global.subdomain.displacement_increment[point][i];
         for(int j = 0; j < option.dim; j++){
             double displacement_increment_j = displacement_increment[j];
             inverse_relative_deformation_gradient[j][j] 
@@ -133,7 +133,7 @@ void update_field_and_internal_forces(){
                     }
         }
         for(int i = 0; i < option.dim; i++)
-                displacement_increment[i] = global.subdomain.displacement[point][i];
+                displacement_increment[i] = global.subdomain.displacement_increment[point][i];
         for(int i = 0; i < option.dim; i++){
             double displacement_increment_i = displacement_increment[i];
             for(int j = 0; j < option.dim; j++){
@@ -386,7 +386,7 @@ double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent
 void zero_fill_displacement_increments(){
     for(int point = 0; point < global.subdomain.N_point; point++){
         for(int i  = 0; i < option.dim; i++){
-            global.subdomain.displacement[point][i] = 0.;
+            global.subdomain.displacement_increment[point][i] = 0.;
         }
     }
 }
