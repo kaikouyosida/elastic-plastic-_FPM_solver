@@ -76,7 +76,7 @@ void generate_coefficient_matrix(){
                                                     global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face+1]);
     }
-
+    //ペナルティ項（安定化項）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face], face, ke_matrix, 0);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face]);
@@ -87,19 +87,6 @@ void generate_coefficient_matrix(){
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1], face, ke_matrix, 0);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1]);
     }
-
-
-    FILE *fp_debug;
-    fp_debug = fopen("debag.dat","w");
-    for(int i = 0; i < 3*global.subdomain.N_point;i++){
-        for(int j = 0; j < 3 * global.subdomain.N_point; j++){
-            fprintf(fp_debug,"%+4.3e  ", global.subdomain.Global_K[i*3*global.subdomain.N_point+j]);
-        }
-        fprintf(fp_debug,"\n");
-    }
-    fclose(fp_debug);
-    exit(0);
-
     
 }
 

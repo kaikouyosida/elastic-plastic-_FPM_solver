@@ -6,6 +6,7 @@
 #include"coefficient_matrix.h"
 #include"internal_force.h"
 #include"external_force.h"
+#include"ImposeDirichretCondition.h"
 
 extern Global global;
 extern Option option;
@@ -27,8 +28,20 @@ void analize_by_NewtonRapdon(){
             residual_norm = calc_global_force_residual_norm();
             if(residual_norm <= option.NR_tol) break;
             generate_coefficient_matrix();
-
             
+            ImposeDirichretResidual(time_step + 1);
+            ImposeDirichletTangentialMatrix();
+            
+            FILE *fp_debug;
+            fp_debug = fopen("debag.dat", "w");
+            for(int i = 0; i < option.dim * global.subdomain.N_point; i++){
+                for(int j = 0; j < option.dim * global.subdomain.N_point; j++){
+                    fprintf(fp_debug, "%+4.3e  ", global.subdomain.Global_K[option.dim * global.subdomain.N_point * i + j]);
+                }
+                fprintf(fp_debug,"\n");
+            }
+            fclose(fp_debug);
+            exit(0);
         }
     }
     

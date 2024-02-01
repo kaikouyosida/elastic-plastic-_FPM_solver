@@ -20,7 +20,10 @@ void init_field(){
     }
 
     //残差ベクトル{r} = {Fint} - λ{Fext}の計算
-    global.subdomain.global_residual_force = matrix(global.subdomain.N_point, option.dim);
+    if((global.subdomain.global_residual_force = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error:Global_residual_force's memory is not enough\n");
+        exit(-1);
+    }
 
     //外力ベクトルをゼロ処理
     global.subdomain.external_force = matrix(global.subdomain.N_point, option.dim);
@@ -135,7 +138,7 @@ void break_field(){
     free_matrix(global.subdomain.previous_global_external_force);
     free_matrix(global.subdomain.global_external_force);
     free_matrix(global.subdomain.external_force);
-    free_matrix(global.subdomain.global_residual_force);
+    free(global.subdomain.global_residual_force);
     free(global.subdomain.Global_K);
     free_matrix(global.subdomain.displacement_increment);
     free_matrix(global.subdomain.displacement);
