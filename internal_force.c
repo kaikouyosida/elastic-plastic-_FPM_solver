@@ -31,8 +31,6 @@ void update_field_and_internal_forces(){
     double b_t_matrix[60][6];                                   //Bマトリクスの転置
     int support[60];                                         //サポートドメイン内のポイント数
     double displacement_increment[3];                           //サポートの変位増分
-    double X[27][3];
-    double w[27];                                               //ガウス求積に使う正規化座標と重み関数
     double elastic_strains[6];                                  //弾性ひずみ
     double current_elastic_strains[6];                          //現配置の弾性ひずみ
     double trial_elastic_strains[6];                            //試行弾性ひずみ

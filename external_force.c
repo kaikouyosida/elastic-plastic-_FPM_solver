@@ -10,8 +10,6 @@ extern Global global;
 extern Option option;
 
 void update_external_force(int time){
-    FILE *fp_debug;                                 //デバッグ用のファイル
-    fp_debug = fopen("debag.dat", "w");
 
     double xyz[3];
     double t_force[3];

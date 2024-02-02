@@ -15,6 +15,8 @@ extern Option option;
 void analize_by_NewtonRapdon(){
     double time;
     double time_increment;
+    FILE *fp_debug;
+    char FILE_name[128];
     double residual_norm;
     double *du;
     init_field();
@@ -46,6 +48,17 @@ void analize_by_NewtonRapdon(){
             free(du);
 
             printf("error norm : %+15.14e\n", residual_norm);
+
+            snprintf(FILE_name, 128,"debag%d.dat", iteration_step);
+            fp_debug = fopen(FILE_name,"w");
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.displacement_increment[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+
+            
 
         }
     }
