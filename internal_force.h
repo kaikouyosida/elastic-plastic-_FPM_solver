@@ -6,3 +6,4 @@ double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent
 void calc_internal_force_penalty(double **all_stress,int N_qu);
 void calc_internal_force_penalty_stabilization(int N_qu);
 double calc_global_force_residual_norm();
+void update_nodal_displacement_increment();

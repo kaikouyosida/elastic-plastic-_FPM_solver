@@ -47,6 +47,7 @@ void analize_by_NewtonRapdon(){
                     global.subdomain.displacement_increment[i][j] += du[option.dim * i + j];
             free(du);
 
+            update_nodal_displacement_increment();
             printf("error norm : %+15.14e\n", residual_norm);
 
             snprintf(FILE_name, 128,"debag%d.dat", iteration_step);

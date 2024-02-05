@@ -36,6 +36,7 @@ void generate_coefficient_matrix(){
         global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, point, point);
     }
+    #if 1
     //ペナルティ項（安定化項以外）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         for(int i = 0; i < option.dim; i++)
@@ -50,11 +51,11 @@ void generate_coefficient_matrix(){
 
         generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
-                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
+                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
         generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face + 1],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
-                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
+                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face]);
 
         for(int i = 0; i < option.dim; i++)
@@ -69,13 +70,14 @@ void generate_coefficient_matrix(){
 
         generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face + 1], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
-                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
+                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
         generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face + 1],global.subdomain.pair_point_ib[2*face+1], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
-                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
+                                                    global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face+1]);
     }
+    #endif 
     //ペナルティ項（安定化項）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face], face, ke_matrix, 0);
@@ -205,6 +207,9 @@ void generate_subdomain_coefficient_matrix_for_panaltyterm(int point_n1, int poi
     else if(flag == 1){
         sign = -1.0;
     }
+    for(int i = 0; i < 3; i++)
+        for(int j = 0; j < 9 ; j++)
+            Ne_d[i][j] = 0.;
 
     //ke_matrixをゼロ処理
     for(int i = 0; i < option.dim * (N1_support + 1); i++)
@@ -342,6 +347,9 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(int point_n1, i
     else if(flag == 1){
         sign = -1.0;
     }
+    for(int i = 0; i < 3; i++)
+        for(int j = 0; j < 9 ; j++)
+            Ne_d[i][j] = 0.;
 
     if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         exit(-1);

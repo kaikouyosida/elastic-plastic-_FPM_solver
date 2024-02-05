@@ -29,7 +29,7 @@ void update_field_and_internal_forces(){
     double trial_elastic_left_cauchy_green_deformations[3][3];  //試行弾性左コーシーグリーンテンソル
     double trial_relative_stresses[6];                          //試行相対応力
     double b_t_matrix[60][6];                                   //Bマトリクスの転置
-    int support[60];                                         //サポートドメイン内のポイント数
+    int support[60];                                             //サポートドメイン内のポイント数
     double displacement_increment[3];                           //サポートの変位増分
     double elastic_strains[6];                                  //弾性ひずみ
     double current_elastic_strains[6];                          //現配置の弾性ひずみ
@@ -650,7 +650,7 @@ double calc_global_force_residual_norm(){
     for(int i = 0; i < global.subdomain.N_point; i++)
         for(int j = 0; j < option.dim; j++)
             global.subdomain.global_residual_force[option.dim * i + j]
-                 = global.subdomain.global_internal_force[i][j] - global.subdomain.global_external_force[i][j];
+                 =  global.subdomain.global_external_force[i][j] - global.subdomain.global_internal_force[i][j];
     
     //ノルムの計算
     for(int i = 0; i < global.subdomain.N_point; i++)
@@ -662,4 +662,16 @@ double calc_global_force_residual_norm(){
     global_r_norm = sqrt(global_r_norm);
     
     return global_r_norm / global_f_norm;
+}
+
+void update_nodal_displacement_increment(){
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+        for(int i = 0; i < option.dim; i++){
+            for(int j = 0; j < N_ar_point; j++){
+                global.subdomain.nodal_displacement_increments[node][i]
+                    += global.subdomain.displacement_increment[global.subdomain.ar_node[node] + j][i] / (double)N_ar_point;
+            }
+        }
+    }
 }
