@@ -670,7 +670,7 @@ void update_nodal_displacement_increment(){
         for(int i = 0; i < option.dim; i++){
             for(int j = 0; j < N_ar_point; j++){
                 global.subdomain.nodal_displacement_increments[node][i]
-                    += global.subdomain.displacement_increment[global.subdomain.ar_node[node] + j][i] / (double)N_ar_point;
+                    += global.subdomain.displacement_increment[global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + j]][i] / (double)N_ar_point;
             }
         }
     }

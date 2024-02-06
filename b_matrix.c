@@ -85,7 +85,7 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
 
 void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     double **G;
-    double N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
+    int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double *latest_point_XYZ;
 
     if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
@@ -162,7 +162,7 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
 
 double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
     double **G;
-    double N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
+    int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double *latest_point_XYZ;
 
     if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){

@@ -28,14 +28,13 @@ void analize_by_NewtonRapdon(){
             
             update_field_and_internal_forces();
             update_external_force(time_step);
-
             residual_norm = calc_global_force_residual_norm();
             if(residual_norm <= option.NR_tol) break;
             generate_coefficient_matrix();
-            
+
             ImposeDirichretResidual(time_step + 1);
             ImposeDirichletTangentialMatrix();
-            
+
             //求解用の変数ベクトルを用意
             if((du = (double *)calloc(3 * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
@@ -48,9 +47,10 @@ void analize_by_NewtonRapdon(){
             free(du);
 
             update_nodal_displacement_increment();
+
             printf("error norm : %+15.14e\n", residual_norm);
 
-            snprintf(FILE_name, 128,"debag%d.dat", iteration_step);
+            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < 3; j++){
