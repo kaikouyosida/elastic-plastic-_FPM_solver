@@ -44,7 +44,7 @@ void update_field_and_internal_forces(){
     //internal_forceをゼロ処理
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
-            global.subdomain.internal_force[i][j] = 0.;
+            global.subdomain.global_internal_force[i][j] = 0.;
         }
     }
 
@@ -320,11 +320,11 @@ void update_field_and_internal_forces(){
             }
             for(int i = 0; i < N_support; i++){
                 for(int j = 0; j < option.dim; j++){
-                    global.subdomain.internal_force[support[i]][j] += subdomain_internal_force[i + 1][j];
+                    global.subdomain.global_internal_force[support[i]][j] += subdomain_internal_force[i + 1][j];
                 }
             }
             for(int i = 0; i < option.dim; i++)
-                global.subdomain.internal_force[point][i] += subdomain_internal_force[0][i];
+                global.subdomain.global_internal_force[point][i] += subdomain_internal_force[0][i];
             //各サブドメインにおける応力を記録（ペナルティ項の計算に用いる）
             for(int i = 0; i < 6; i++)
                 all_stress[point][i] = current_stresses[i];
@@ -481,44 +481,44 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                     }
                 }
 
-            
+                //[NT]{neσ}の計算→全体の内力ベクトルにアセンブル
                 for(int i = 0; i < option.dim * (N1_support + 1); i++){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < 6; j++){
                         subdomain_internal_force_i += -0.5 * (N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face]][j]
-                                                        + N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
+                                                        - N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
                     }
-                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                    subdomain_internal_force[i] = subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
                 for(int i = 0; i < N1_support; i++){
                     for(int j = 0; j < option.dim; j++){
                         global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]] + i]][j]
-                        += subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
+                        += subdomain_internal_force[option.dim * (i + 1) + j];   
                     }
                 }
                 for(int i = 0 ; i < option.dim; i++)
                     global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face]][i]
-                        += subdomain_internal_force[i] * jacobian * w[s] * w[t];
+                        += subdomain_internal_force[i];
 
                 for(int i = 0; i < option.dim * (N2_support + 1); i++){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < 6; j++){
                         subdomain_internal_force_i += 0.5 * (N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face]][j]
-                                                        + N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
+                                                        - N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
                     }
-                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                    subdomain_internal_force[i] = subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
     
                 for(int i = 0; i < N2_support; i++){
                     for(int j = 0; j < option.dim; j++){
                         global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1]] + i]][j]
-                        += subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];
+                        += subdomain_internal_force[option.dim * (i + 1) + j];
                     }
                 }
 
                 for(int i = 0 ; i < option.dim; i++)
                     global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face + 1]][i]
-                        += subdomain_internal_force[i] * jacobian * w[s] * w[t];
+                        += subdomain_internal_force[i];
  
             }
         }
@@ -568,6 +568,7 @@ void calc_internal_force_penalty_stabilization(int N_qu){
                                         + global.subdomain.nodal_displacement_increments[i][j];
         }
     }
+    
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
@@ -646,11 +647,25 @@ void calc_internal_force_penalty_stabilization(int N_qu){
 
 double calc_global_force_residual_norm(){
     double global_f_norm = 0., global_r_norm = 0.;
+    char FILE_name[128];
+    FILE *fp_debug;
 
     for(int i = 0; i < global.subdomain.N_point; i++)
         for(int j = 0; j < option.dim; j++)
             global.subdomain.global_residual_force[option.dim * i + j]
                  =  global.subdomain.global_external_force[i][j] - global.subdomain.global_internal_force[i][j];
+    
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_residual_force[option.dim * i + j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+    #endif
     
     //ノルムの計算
     for(int i = 0; i < global.subdomain.N_point; i++)

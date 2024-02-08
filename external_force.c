@@ -11,6 +11,8 @@ extern Option option;
 
 void update_external_force(int time){
 
+    FILE *fp_debug;
+    char FILE_name[128];
     double xyz[3];
     double t_force[3];
     double NT[60][3];
@@ -66,7 +68,7 @@ void update_external_force(int time){
         jacobian = calc_surface_area(global.bc.traction_face[face]) / 4.0;
 
         for(int i = 0; i < 4; i++)
-            face_node[i] = global.subdomain.node[global.subdomain.vertex_offset[global.bc.traction_point[face]] + i];
+            face_node[i] = global.subdomain.node[global.subdomain.vertex_offset[global.bc.traction_face[face]] + i];
         
         for(int i = 0; i < 4; i++)
             for(int j = 0; j < option.dim; j++)
@@ -89,22 +91,35 @@ void update_external_force(int time){
                     for(int j = 0; j < option.dim; j++){
                         subdomain_external_force_i += NT[i][j] * t_force[j];
                     }
-                    subdomain_external_force[i] = subdomain_external_force_i;
+                    subdomain_external_force[i] = subdomain_external_force_i * jacobian * w[s] * w[t] * lambda;
                 }
-            
+                
+            }
+        }
+        //要素ごとの外力ベクトルを全体の外力ベクトルにアセンブル
                 for(int i = 0; i < N_support; i++){
                     for(int j = 0; j < option.dim; j++){
                         global.subdomain.global_external_force[global.subdomain.support[global.subdomain.support_offset[global.bc.traction_point[face]] + i]][j]
-                            += subdomain_external_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t] * lambda;
+                            += subdomain_external_force[option.dim * (i + 1) + j];
                     }
                 }
             
                 for(int i = 0; i < option.dim; i++)
                     global.subdomain.global_external_force[global.bc.traction_point[face]][i] 
-                        += subdomain_external_force[i] * jacobian * w[s] * w[t] * lambda;
-            }
-        }
+                        += subdomain_external_force[i];
     }
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+4.3e  ", global.subdomain.global_external_force[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fprintf(fp_debug, "\n");
+    #endif
     
     
     free(node_XYZ);

@@ -22,6 +22,7 @@ void generate_coefficient_matrix(){
 
     //接線剛性マトリクスの領域積分の項を計算
     for(int point = 0; point < global.subdomain.N_point; point++){
+
         for(int i = 0; i < option.dim; i++)
             for(int j = 0; j < option.dim; j++)
                 current_deformation_gradient[i][j] = global.subdomain.deformation_gradients[i][j][point];
@@ -96,12 +97,13 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
                                             double (*current_deformation_gradients)[3], double *current_stress, double *trial_elastic_strains,
                                             double *equivalemt_plastic_strains, double *equivalent_plastic_strain_increments, double *back_stresses){
     double b_t_matrix[60][6];
-    double b_NL_matrix[60][9];
+    double b_t_NL_matrix[60][9];
     double s_matrix[9][9];
     double d_matrix[6][6];
     double BTD[60][6];
     double GTS[60][9];
     double jacobian;
+    FILE *fp_debug;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
 
     //ke_matrixをゼロ処理
@@ -145,16 +147,16 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
     }
 
     //非線形Bマトリクスの計算
-    generate_nonlinear_b_matrix(b_NL_matrix, point_n);
+    generate_nonlinear_b_matrix(b_t_NL_matrix, point_n);
 
     //Sマトリクスの計算
     generateSMatrix(s_matrix, current_stress);
-
+    
     for(int i = 0; i < option.dim * (N_support + 1); i++){
         for(int j = 0; j < 9; j++){
             double GTS_ij = 0.;
             for(int k = 0; k < 9; k++){
-                GTS_ij += b_NL_matrix[i][k] * s_matrix[k][j];
+                GTS_ij += b_t_NL_matrix[i][k] * s_matrix[k][j];
             }
             GTS[i][j] = GTS_ij;
         }
@@ -164,7 +166,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
         for(int j = 0; j < option.dim * (N_support + 1); j++){
             double ke_ij = 0;
             for(int k = 0; k < option.dim * (N_support + 1); k++){
-                ke_ij += GTS[i][k] * b_NL_matrix[j][k];
+                ke_ij += GTS[i][k] * b_t_NL_matrix[j][k];
             }
             ke_matrix[i][j] += ke_ij * jacobian;
         }
@@ -217,6 +219,7 @@ void generate_subdomain_coefficient_matrix_for_panaltyterm(int point_n1, int poi
             ke_matrix[i][j] = 0.;
 
     if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error:Latest_point_XYZ's memory is not enough\n");
         exit(-1);
     }
     if((node_XYZ = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){

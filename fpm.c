@@ -19,6 +19,8 @@ void analize_by_NewtonRapdon(){
     char FILE_name[128];
     double residual_norm;
     double *du;
+
+    global.count = 0.;
     init_field();
     
     time_increment = option.Delta_time;
@@ -32,14 +34,27 @@ void analize_by_NewtonRapdon(){
             if(residual_norm <= option.NR_tol) break;
             generate_coefficient_matrix();
 
-            ImposeDirichretResidual(time_step + 1);
+            
+            ImposeDirichretResidual(iteration_step + 1);
             ImposeDirichletTangentialMatrix();
 
+            #if 0
+            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
+            fp_debug = fopen(FILE_name,"w");
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+4.3e  ", global.subdomain.global_residual_force[i*3+j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+            #endif
+
             //求解用の変数ベクトルを用意
-            if((du = (double *)calloc(3 * global.subdomain.N_point, sizeof(double))) == NULL){
+            if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
             }
-            solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force,option.dim * global.subdomain.N_point);
+            solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
 
             for(int i = 0; i < global.subdomain.N_point; i++)
                 for(int j = 0; j < option.dim; j++)
@@ -50,17 +65,18 @@ void analize_by_NewtonRapdon(){
 
             printf("error norm : %+15.14e\n", residual_norm);
 
+            #if 0
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.displacement_increment[i][j]);
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_residual_force[i*3+j]);
                 }
                 fprintf(fp_debug, "\n");
             }
-
+            fclose(fp_debug);
+            #endif
             
-
         }
     }
     

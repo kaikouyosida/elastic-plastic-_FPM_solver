@@ -184,7 +184,7 @@ void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], d
     
     inverse_volume_change = 1.0 / calc_3x3matrix_determinant(current_deformation_gradient);
 
-    //応力をvoigt表記からテンソル表記へ変換,Kirchhoff応力を計算
+    //応力をvoigt表記からテンソル表記へ変換,Cauchy応力を計算
     current_stress_tensor[0][0] = current_stresses[0];
     current_stress_tensor[0][1] = current_stresses[3];
     current_stress_tensor[0][2] = current_stresses[5];

@@ -247,6 +247,7 @@ void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
         printf("Error:u's memory is not enough\n");
         exit(-1);
     }
+
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
             u[option.dim * i + j] = global.subdomain.displacement[i][j] + global.subdomain.displacement_increment[i][j];
@@ -260,14 +261,15 @@ void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
 
     for(int i = 0; i < option.dim; i++)
         u_h[i] = shapeF_t[i][i] * u[option.dim * point_n + i];
+
     for(int i = 0; i < option.dim; i++){
         double u_i = 0.;
         for(int j = 0; j < N_support; j++){
             u_i += shapeF_t[option.dim * (j + 1) + i][i] * u[option.dim * global.subdomain.support[global.subdomain.support_offset[point_n] + j] + i];
         }
-        u_h[i] = u_i;
+        u_h[i] += u_i;
     } 
 
-    free(u);
     free_matrix(G);
+    free(u);
 }
