@@ -563,6 +563,7 @@ void generate_coefficient_linear(){
         int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
         generate_linear_b_matrix(b_t_matrix, point);
         generateElasticDMatrix(d_matrix);
+        double jacobian = calc_subdomain_volume(point);
 
         for(int i = 0; i < option.dim * (N_support + 1); i++){
             for(int j = 0; j < 6; j++){
@@ -579,7 +580,7 @@ void generate_coefficient_linear(){
                 for(int k = 0; k < 6; k++){
                     BTDB_ij += BTD[i][k] * b_t_matrix[j][k];
                 }
-                ke_matrix[i][j] = BTDB_ij;
+                ke_matrix[i][j] = BTDB_ij * jacobian;
             }
         }
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, point, point);    
@@ -683,7 +684,7 @@ void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2,
                     for(int k = 0; k < 6; k++){
                         ke_ij += N1TneD[i][k] * b_t_matrix[j][k];
                     }
-                    ke_matrix[i][j] += sign * ke_ij * jacobian * w[s] * w[t];
+                    ke_matrix[i][j] += 0.5 * sign * ke_ij * jacobian * w[s] * w[t];
                 }
             }
         }
