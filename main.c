@@ -3,6 +3,8 @@
 #include"model.h"
 #include"type.h"
 #include"fpm.h"
+#include"Output.h"
+
 Global global;
 Option option;
 SS_CURVE ss_curve;
@@ -12,6 +14,7 @@ SS_CURVE ss_curve;
 
 int main(){
     int solver_type = 2;
+    double *du;
 
     Init_model();
 
@@ -20,7 +23,13 @@ int main(){
             analize_by_NewtonRapdon();
         break;
         case LINEAR_SOLVER:
-            Linear_analization();
+            if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+                printf("Error: du's Memory is not enough\n");
+                exit(-1);
+            }
+            Linear_analization(du);
+            Output_Linear_data(du);
+            free(du);
         break;
     }
     

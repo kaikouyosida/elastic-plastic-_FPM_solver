@@ -83,9 +83,8 @@ void analize_by_NewtonRapdon(){
     break_field();
 }
 
-void Linear_analization(){
+void Linear_analization(double *du){
     FILE *fp_debug;
-    double *du;
     double *f_ext;
 
     init_field();
@@ -95,9 +94,6 @@ void Linear_analization(){
     ImposeDirichletTangentialMatrix();
 
     //求解用の変数ベクトルを用意
-    if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error:du's memory is not enough\n");
-    }
     if((f_ext = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:f_ext's memory is not enough\n");
     }
@@ -118,7 +114,7 @@ void Linear_analization(){
         fclose(fp_debug);
     #endif
     free(f_ext);
-    free(du);
+    exit(-1);
     
     break_field();
 }

@@ -564,7 +564,7 @@ void generate_coefficient_linear(){
         generate_linear_b_matrix(b_t_matrix, point);
         generateElasticDMatrix(d_matrix);
         double jacobian = calc_subdomain_volume(point);
-
+    printf("%lf\n", jacobian);
         for(int i = 0; i < option.dim * (N_support + 1); i++){
             for(int j = 0; j < 6; j++){
                 double BTD_ij = 0.;
@@ -585,7 +585,7 @@ void generate_coefficient_linear(){
         }
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, point, point);    
     }
-
+    
     //全体剛性マトリクスの計算（境界積分の安定化項以外）
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         generate_Linear_coefficient_penalty(face, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face], ke_matrix, 1);
@@ -597,7 +597,7 @@ void generate_coefficient_linear(){
         generate_Linear_coefficient_penalty(face, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1], ke_matrix, 1);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
     }
-
+    #if 1
     //全体剛性マトリクスの計算（境界積分の安定化項）
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         generate_Linear_coefficient_stabilization(face, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face], ke_matrix,0);
@@ -609,6 +609,7 @@ void generate_coefficient_linear(){
         generate_Linear_coefficient_stabilization(face, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1], ke_matrix,0);
         assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
     }
+    #endif
 }
 
 void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2, double (*ke_matrix)[60], int flag){

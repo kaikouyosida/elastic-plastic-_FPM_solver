@@ -89,6 +89,7 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     double *latest_point_XYZ;
 
     if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error: Latest_point_XYZ's memory is not enough\n");
         exit(-1);
     }
     G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
@@ -131,8 +132,8 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
 
         for(int i = 1; i < N_support + 1; i++){
             double dn_dx_0_i = G[0][3 * i];
-            double dn_dx_1_i = G[1][3 * i + 1];
-            double dn_dx_2_i = G[2][3 * i + 2];
+            double dn_dx_1_i = G[1][3 * i];
+            double dn_dx_2_i = G[2][3 * i];
 
             b_t_matrix[option.dim * i][0] = dn_dx_0_i;
             b_t_matrix[option.dim * i][1] = 0.0;
