@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Ofast -pipe
+CFLAGS = -Ofast -pipe -Wall
 .PHONY: solver
 TARGET = solver
 SRCS = main.c model.c

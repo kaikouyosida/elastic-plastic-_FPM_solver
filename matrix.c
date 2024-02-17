@@ -42,7 +42,7 @@ double ***threetimes_tensor(int m, int n, int l){
         exit(-1);
     }
 
-    for(int i = 1; i < m; i++) A[i] = A[i-1] + n;
+    for(int i = 0; i < m; i++) A[i] = A[0] + n * i;
 	
     for(int i = 0; i < m; i++){
         for(int j = 0; j < n; j++) A[i][j] = A[0][0] + i * n * l + j * l;

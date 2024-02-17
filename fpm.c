@@ -8,6 +8,7 @@
 #include"external_force.h"
 #include"ImposeDirichretCondition.h"
 #include"LU_decomposition.h"
+#include"Output.h"
 
 extern Global global;
 extern Option option;
@@ -83,27 +84,33 @@ void analize_by_NewtonRapdon(){
     break_field();
 }
 
-void Linear_analization(double *du){
+void Linear_analization(){
     FILE *fp_debug;
     double *f_ext;
+    double *du;
 
     init_field();
     update_external_force(0);
     generate_coefficient_linear();
-    ImposeDirichretResidual(0);
+    ImposeDirichretResidual(1);
     ImposeDirichletTangentialMatrix();
-
+    
     //求解用の変数ベクトルを用意
+     if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error: du's Memory is not enough\n");
+        exit(-1);
+    }
     if((f_ext = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:f_ext's memory is not enough\n");
     }
+
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
             f_ext[option.dim * i + j] = global.subdomain.global_external_force[i][j];
         }
     }
     solver_LU_decomposition(global.subdomain.Global_K, du, f_ext, option.dim * global.subdomain.N_point);
-    #if 1
+    #if 0
         fp_debug = fopen("debug.dat", "w");
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < 3; j++){
@@ -112,9 +119,11 @@ void Linear_analization(double *du){
             fprintf(fp_debug, "\n");
         }
         fclose(fp_debug);
-    #endif
+    #endif 
+
+    Output_Linear_strain_data(du);    
+
     free(f_ext);
-    exit(-1);
-    
+    free(du);
     break_field();
 }
