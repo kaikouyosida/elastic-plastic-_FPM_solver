@@ -13,7 +13,7 @@ SS_CURVE ss_curve;
 #define LINEAR_SOLVER 2
 
 int main(){
-    int solver_type = 2;
+    int solver_type = 1;
 
     Init_model();
 
@@ -23,7 +23,6 @@ int main(){
         break;
         case LINEAR_SOLVER:
             Linear_analization();
-            printf("status!\n");
         break;
     }
     

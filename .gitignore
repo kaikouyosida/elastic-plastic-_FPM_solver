@@ -1,4 +1,6 @@
 Data_Files_Input/
+Data_Files_Output/
+paraview/
 Analysis_condition_setting.dat
 material_constant_setting.dat
 *.exe

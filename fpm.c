@@ -89,8 +89,15 @@ void Linear_analization(){
     double *f_ext;
     double *du;
 
+    option.time_old = 0.;
+    option.time = 1.0;
+
     init_field();
     update_external_force(0);
+    for(int i = 0; i < global.subdomain.N_point; i++)
+        for(int j = 0; j < 3; j++)
+         printf("%lf\n", global.subdomain.global_external_force[i][j]);
+    global.buf = calc_global_force_residual_norm();
     generate_coefficient_linear();
     ImposeDirichretResidual(1);
     ImposeDirichletTangentialMatrix();
@@ -100,17 +107,9 @@ void Linear_analization(){
         printf("Error: du's Memory is not enough\n");
         exit(-1);
     }
-    if((f_ext = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error:f_ext's memory is not enough\n");
-    }
-
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < option.dim; j++){
-            f_ext[option.dim * i + j] = global.subdomain.global_external_force[i][j];
-        }
-    }
-    solver_LU_decomposition(global.subdomain.Global_K, du, f_ext, option.dim * global.subdomain.N_point);
-    #if 0
+    
+    solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
+    #if 1
         fp_debug = fopen("debug.dat", "w");
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < 3; j++){
@@ -123,7 +122,6 @@ void Linear_analization(){
 
     Output_Linear_strain_data(du);    
 
-    free(f_ext);
     free(du);
     break_field();
 }

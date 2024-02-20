@@ -13,12 +13,28 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
 		fixed_u = 0.0;
 	}
   else if(type == 1){
-    // 時間に比例した変形 //
-		fixed_u = (-0.2*x1)*(time/time_end);
+    // x軸方向のTimoshenko梁の変位固定 //
+		double E_mod = global.material.E_mod;
+    double nu_mod = global.material.nu_mod;
+    double I = 1.0 / 12.0;
+    double P = 1.0;
+    double L = 10.0;
+    fixed_u = P / (6.0 * E_mod * I) * (3.0 * x1 * (2.0 * L - x1) + (2.0 + nu_mod) * (x2 * x2 - 1.0 / 4.0)) * x2;
+    
+     if(time == 0)
+      fixed_u = 0;
 	}
   else if(type == 2){
-    // 時間に比例した変形 //
-		fixed_u = (0.25*x2)*(time/time_end);
+    // y軸方向のTimoshenko梁の変位固定 //
+		double E_mod = global.material.E_mod;
+    double nu_mod = global.material.nu_mod;
+    double I = 1.0 / 12.0;
+    double P = 1.0;
+    double L = 10.0;
+    fixed_u = -P / (6.0 * E_mod * I) * (x1 * x1 * (3.0 * L - x1) + 3.0 * nu_mod * (L - x1) * x2 * x2 + (4.0 + 5.0 * nu_mod)/ 4.0 * x1);
+
+    if(time == 0)
+      fixed_u = 0;
 	}
   else if(type == 3){
     // 時間に比例した変形 //
