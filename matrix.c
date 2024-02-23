@@ -340,10 +340,7 @@ void calc_Ne_diagonal(int dim , int subdomain_n1, int subdomain_n2, int face, in
 	double Ne[3][6];
 	calc_Ne(option.dim, subdomain_n1, subdomain_n2, face, vertex_offset, node, node_xyz, center_xyz, Ne);
 
-	for(int i = 0; i < option.dim; i++){
-		for(int j = 0; j < option.dim; j++){
-			Ne_d[i][option.dim * i + j] = Ne[j][j];
-		}
-	}
-
+	Ne_d[0][0] = Ne[0][0];	Ne_d[0][1] = 0.0;		Ne_d[0][2] = 0.0;		Ne_d[0][3] = Ne[1][1];		Ne_d[0][4] = 0.0;		Ne_d[0][5] = 0.0;      Ne_d[0][6] = Ne[2][2];		Ne_d[0][7] = 0.0;		Ne_d[0][8] = 0.0; 
+	Ne_d[1][0] = 0.0;       Ne_d[1][1] = Ne[0][0];	Ne_d[1][2] = 0.0;		Ne_d[1][3] = 0.0   ;		Ne_d[1][4] = Ne[1][1]; 	Ne_d[1][5] = 0.0;      Ne_d[1][6] = 0.0;			Ne_d[1][7] = Ne[2][2]; 	Ne_d[1][8] = 0.0;
+	Ne_d[2][0] = 0.0;		Ne_d[2][1] = 0.0;		Ne_d[2][2] = Ne[0][0];	Ne_d[2][3] = 0.0   ;		Ne_d[2][4] = 0.0;	 	Ne_d[2][5] = Ne[1][1]; Ne_d[2][6] = 0.0;	 		Ne_d[2][7] = 0.0;		Ne_d[2][8] = Ne[2][2];	
 }

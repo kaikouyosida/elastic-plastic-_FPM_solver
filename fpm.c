@@ -60,24 +60,25 @@ void analize_by_NewtonRapdon(){
             for(int i = 0; i < global.subdomain.N_point; i++)
                 for(int j = 0; j < option.dim; j++)
                     global.subdomain.displacement_increment[i][j] += du[option.dim * i + j];
-            free(du);
-
-            update_nodal_displacement_increment();
-
-            printf("error norm : %+15.14e\n", residual_norm);
-
-            #if 0
+            
+            #if 1
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
+            fprintf(fp_debug, "point        /displacement           x           y           z\n");
             for(int i = 0; i < global.subdomain.N_point; i++){
+                fprintf(fp_debug, "%5d  ", i);
                 for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_residual_force[i*3+j]);
+                    fprintf(fp_debug, "%+15.14e  ", du[i*3+j]);
                 }
                 fprintf(fp_debug, "\n");
             }
             fclose(fp_debug);
             #endif
-            
+            free(du);
+
+            update_nodal_displacement_increment();
+
+            printf("error norm : %+15.14e\n", residual_norm);
         }
     }
     
@@ -94,9 +95,6 @@ void Linear_analization(){
 
     init_field();
     update_external_force(0);
-    for(int i = 0; i < global.subdomain.N_point; i++)
-        for(int j = 0; j < 3; j++)
-         printf("%lf\n", global.subdomain.global_external_force[i][j]);
     global.buf = calc_global_force_residual_norm();
     generate_coefficient_linear();
     ImposeDirichretResidual(1);
@@ -109,7 +107,7 @@ void Linear_analization(){
     }
     
     solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
-    #if 1
+    #if 0
         fp_debug = fopen("debug.dat", "w");
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < 3; j++){

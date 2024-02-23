@@ -123,9 +123,6 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
     //有限ひずみのDマトリクスに修正
     modify_d_matrix_with_finite_strain(d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
 
-    //弾性Bマトリクスの計算
-    generate_linear_b_matrix(b_t_matrix, point_n);
-
     for(int i = 0; i < option.dim * (N_support + 1); i++){
         for(int j = 0; j < 6; j++){
             double BTD_ij = 0.;
@@ -181,7 +178,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
 */
 void generate_subdomain_coefficient_matrix_for_panaltyterm(int point_n1, int point_n2, int face_n, double (*ke_matrix)[60], 
                                             double (*current_deformation_gradients)[3], double *current_stress, double *trial_elastic_strains,
-                                            double *equivalemt_plastic_strains, double *equivalent_plastic_strain_increments, double *back_stresses, double flag){
+                                            double *equivalemt_plastic_strains, double *equivalent_plastic_strain_increments, double *back_stresses, int flag){
 
     int N_qu = 1;
     double factor;
@@ -265,9 +262,6 @@ void generate_subdomain_coefficient_matrix_for_panaltyterm(int point_n1, int poi
     //法線ベクトルの計算
     calc_Ne_diagonal(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], face_n, global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, latest_point_XYZ, Ne_d);
 
-    //物質表記→空間表記する際の面積変化率(J/sqrt(nBn))の分子 ,sqrt(nBn) の計算
-    factor = calc_area_change_factor(global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], Ne_d);
-
     //ペナルティ項を計算
     for(int s = 0;  s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
@@ -305,7 +299,7 @@ void generate_subdomain_coefficient_matrix_for_panaltyterm(int point_n1, int poi
                     for(int k = 0; k < option.dim; k++){
                         ke_ij += NT[i][k] * neCG[k][j];
                     }
-                    ke_matrix[i][j] += 0.5 * ke_ij * factor * jacobian * w[s] * w[t] * sign;
+                    ke_matrix[i][j] += 0.5 * ke_ij * jacobian * w[s] * w[t] * sign;
                 }
             }
 
@@ -486,7 +480,6 @@ double calc_area_change_factor(int subdomain_n1, int subdomain_n2, double (*Ne_d
     for(int i = 0; i < 6; i++){
         trial_elastic_strains1[i] = global.subdomain.trial_elastic_strains[subdomain_n1][i];
         trial_elastic_strains2[i] = global.subdomain.trial_elastic_strains[subdomain_n2][i];
-
     }
     
     //試行弾性左コーシーグリーンテンソルの計算
@@ -527,16 +520,14 @@ double calc_area_change_factor(int subdomain_n1, int subdomain_n2, double (*Ne_d
     for(int i = 0; i < option.dim; i++){
         double Bn_i =0.;
         for(int j = 0; j < option.dim; j++){
-            Bn_i += trial_elastic_left_cauchy_green_deformations[i][j] * Ne_d[0][j];
+            Bn_i += trial_elastic_left_cauchy_green_deformations[i][j] * Ne_d[0][option.dim * j];
         }
         Bn[i] = Bn_i;
     }
     for(int i = 0; i < option.dim; i++)
-        factor += Ne_d[0][i] * Bn[i];
+        factor += Ne_d[0][option.dim * i] * Bn[i];
 
     return factor;
-    
-
 }
 
 void generate_coefficient_linear(){

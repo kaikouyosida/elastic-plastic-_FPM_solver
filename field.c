@@ -112,7 +112,6 @@ void init_field(){
 
 }
 void break_field(){
-    printf("check0\n");
     free_matrix(global.subdomain.nodal_back_stresses);
     free(global.subdomain.nodal_yield_stresses);
     free(global.subdomain.nodal_equivalent_plastic_strains);
