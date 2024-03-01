@@ -105,7 +105,7 @@ void calculateTensorLogarithm(double (*tensor_out)[3], double (*tensor_in)[3])
     for (i = 0; i < 3; i++)
         tensor[i][i] += 1.0;
 
-    calc_3x3_matrix_square(square_tensor, tensor);
+    calculate3x3MatrixSquare(square_tensor, tensor);
 
     for (i = 0; i < 3; i++)
         for (j = 0; j < 3; j++)

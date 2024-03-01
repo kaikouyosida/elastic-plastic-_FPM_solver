@@ -14,20 +14,16 @@ extern Global global;
 extern Option option;
 
 void analize_by_NewtonRapdon(){
-    double time;
-    double time_increment;
     FILE *fp_debug;
     char FILE_name[128];
     double residual_norm;
     double *du;
 
     global.count = 0.;
-    init_field();
-    
-    time_increment = option.Delta_time;
-    time = time_increment;
+    init_field();           //変数を初期化
+
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
-        for(int iteration_step = 0; iteration_step < 1000; iteration_step++){
+        for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
             
             update_field_and_internal_forces();
             update_external_force(time_step);
@@ -55,13 +51,14 @@ void analize_by_NewtonRapdon(){
             if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
             }
+
             solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
 
             for(int i = 0; i < global.subdomain.N_point; i++)
                 for(int j = 0; j < option.dim; j++)
                     global.subdomain.displacement_increment[i][j] += du[option.dim * i + j];
             
-            #if 1
+            #if 0
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             fprintf(fp_debug, "point        /displacement           x           y           z\n");
@@ -79,10 +76,15 @@ void analize_by_NewtonRapdon(){
             update_nodal_displacement_increment();
 
             printf("error norm : %+15.14e\n", residual_norm);
+            if(iteration_step == 1000){
+                printf("Iteration is not converged\n");
+                exit(-1);
+            }
+            
         }
     }
     
-    break_field();
+    break_field();          //変数のメモリを開放
 }
 
 void Linear_analization(){

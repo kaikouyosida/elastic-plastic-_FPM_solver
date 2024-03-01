@@ -145,11 +145,3 @@ void traction(double x1, double x2, double x3, double* t, int type){
 	}
 }
 
-// 荷重パラメータの時間依存性 //
-double load_parameter(double time, double time_end){
-  double lambda = 0.;
-
-  lambda = time/time_end;
-
-  return lambda;
-}

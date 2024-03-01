@@ -113,7 +113,7 @@ void Output_Linear_strain_data(double *du){
     FILE *fp_debug_u;
     fp_debug = fopen("Data_Files_Output/debug_stress.dat", "w");
     for(int point = 0; point < global.subdomain.N_point; point++){
-        if(fabs(global.subdomain.point_XYZ[3*point+2] - 0.0) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*point]  - 0.0) < 1.0e-5){
+        if(fabs(global.subdomain.point_XYZ[3*point+2] - 1.0) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*point]  - 0.0) < 1.0e-5){
             fprintf(fp_debug, "%5d      ", point);
             fprintf(fp_debug, "%+15.14e %+15.14e %+15.14e  ", global.subdomain.point_XYZ[option.dim * point], global.subdomain.point_XYZ[option.dim * point + 1], global.subdomain.point_XYZ[option.dim * point + 2]);
             fprintf(fp_debug, "%+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", stress_all[6 * point], stress_all[6 * point + 1], stress_all[6 * point + 2], stress_all[6 * point + 3],  stress_all[6 * point + 4],  stress_all[6 * point + 5]);
@@ -123,7 +123,7 @@ void Output_Linear_strain_data(double *du){
 
     fp_debug_u = fopen("Data_Files_Output/debug_displacement.dat", "w");
     for(int point = 0; point < global.subdomain.N_point; point++){
-        if(fabs(global.subdomain.point_XYZ[3*point+2] - 0.0) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*point + 1]  - 0) < 1.0e-5){
+        if(fabs(global.subdomain.point_XYZ[3*point+2] - 1.0) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*point + 1]  + 0.5) < 1.0e-5){
             fprintf(fp_debug_u, "%5d      ", point);
             fprintf(fp_debug_u, "%+15.14e %+15.14e %+15.14e  ", global.subdomain.point_XYZ[option.dim * point], global.subdomain.point_XYZ[option.dim * point + 1], global.subdomain.point_XYZ[option.dim * point + 2]);
             fprintf(fp_debug_u, "%+15.14e %+15.14e %+15.14e\n", du[3 * point], du[3 * point + 1], du[3 * point + 2]);

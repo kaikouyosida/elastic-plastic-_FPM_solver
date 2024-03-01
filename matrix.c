@@ -228,21 +228,6 @@ double calc_3x3matrix_norm(double (*matrix)[3]){
 
     return sqrt(temp);
 }
-void calc_3x3_matrix_square(double(*matrix_out)[3], double (*matrix_in)[3]){
-    int i, j, k;
-
-    for (i = 0; i < 3; i++)
-        for (j = 0; j < 3; j++)
-        {
-            double temp = 0.0;
-
-            for (k = 0; k < 3; k++)
-                temp
-                    += matrix_in[i][k] * matrix_in[k][j];
-
-            matrix_out[i][j] = temp;
-        }
-}
 double calc_3x3matrix_determinant(double (*matrix)[3])
 {
     return

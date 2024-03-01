@@ -35,7 +35,7 @@ void generate_coefficient_matrix(){
         
         generate_subdomain_coefficient_matrix(point, ke_matrix, current_deformation_gradient, current_stresses, trial_elastic_strains,
         global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, point, point);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point, point);
     }
     #if 1
     //ペナルティ項（安定化項以外）の項を計算
@@ -50,14 +50,14 @@ void generate_coefficient_matrix(){
             back_stress[i] = global.subdomain.back_stresses[global.subdomain.pair_point_ib[2 * face]][i];
         }
 
-        generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
+        generate_subdomain_coefficient_matrix_for_PenaltyTerm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
                                                     global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
-        generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face + 1],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
+        generate_subdomain_coefficient_matrix_for_PenaltyTerm(global.subdomain.pair_point_ib[2*face + 1],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
                                                     global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face]);
 
         for(int i = 0; i < option.dim; i++)
             for(int j = 0; j < option.dim; j++)
@@ -69,26 +69,26 @@ void generate_coefficient_matrix(){
             back_stress[i] = global.subdomain.back_stresses[global.subdomain.pair_point_ib[2 * face + 1]][i];
         }
 
-        generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face + 1], face, ke_matrix,
+        generate_subdomain_coefficient_matrix_for_PenaltyTerm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face + 1], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
                                                     global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
-        generate_subdomain_coefficient_matrix_for_panaltyterm(global.subdomain.pair_point_ib[2*face + 1],global.subdomain.pair_point_ib[2*face+1], face, ke_matrix,
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
+        generate_subdomain_coefficient_matrix_for_PenaltyTerm(global.subdomain.pair_point_ib[2*face + 1],global.subdomain.pair_point_ib[2*face+1], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
                                                     global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face+1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.pair_point_ib[2*face+1]);
     }
     #endif 
     //ペナルティ項（安定化項）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face], face, ke_matrix, 0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face]);
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face + 1], face, ke_matrix, 1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face + 1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face], global.subdomain.pair_point_ib[2 *face + 1]);
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face+ 1], global.subdomain.pair_point_ib[2 *face], face, ke_matrix, 1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face+ 1], global.subdomain.pair_point_ib[2 *face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face+ 1], global.subdomain.pair_point_ib[2 *face]);
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1], face, ke_matrix, 0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1]);
     }
     
 }
@@ -176,7 +176,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
 /*
 引数内での変形勾配テンソル等はpoint_n2のサブドメイン内で定義したもの
 */
-void generate_subdomain_coefficient_matrix_for_panaltyterm(int point_n1, int point_n2, int face_n, double (*ke_matrix)[60], 
+void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int point_n2, int face_n, double (*ke_matrix)[60], 
                                             double (*current_deformation_gradients)[3], double *current_stress, double *trial_elastic_strains,
                                             double *equivalemt_plastic_strains, double *equivalent_plastic_strain_increments, double *back_stresses, int flag){
 
@@ -424,7 +424,7 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(int point_n1, i
     free(latest_point_XYZ);
 
 }
-void assemble_coefficient_matrix_matrix_domain(double (*element_K)[60], double *Global_K, int point_n1, int point_n2){
+void assemble_coefficient_matrix(double (*element_K)[60], double *Global_K, int point_n1, int point_n2){
     int ref_num1 = global.subdomain.support_offset[point_n1];
     int ref_num2 = global.subdomain.support_offset[point_n2];
     int N1_support = global.subdomain.support_offset[point_n1 + 1] - global.subdomain.support_offset[point_n1];
@@ -574,32 +574,32 @@ void generate_coefficient_linear(){
                 ke_matrix[i][j] = BTDB_ij * jacobian;
             }
         }
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, point, point);    
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point, point);    
     }
     
     //全体剛性マトリクスの計算（境界積分の安定化項以外）
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         //printf("face up:%d  \n", face);
         generate_Linear_coefficient_penalty(face, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face], ke_matrix, 1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
         generate_Linear_coefficient_penalty(face, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1], ke_matrix, 1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
         generate_Linear_coefficient_penalty(face, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face], ke_matrix, 0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face]);
         generate_Linear_coefficient_penalty(face, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1], ke_matrix, 0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K,global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
     }
     #if 1
     //全体剛性マトリクスの計算（境界積分の安定化項）
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         generate_Linear_coefficient_stabilization(face, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face], ke_matrix,0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face]);
         generate_Linear_coefficient_stabilization(face, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1], ke_matrix,1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face], global.subdomain.pair_point_ib[2*face+1]);
         generate_Linear_coefficient_stabilization(face, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face], ke_matrix,1);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face]);
         generate_Linear_coefficient_stabilization(face, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1], ke_matrix,0);
-        assemble_coefficient_matrix_matrix_domain(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
+        assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
     }
     #endif
 }
