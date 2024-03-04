@@ -690,3 +690,45 @@ void update_nodal_displacement_increment(){
         }
     }
 }
+
+void increment_field(){
+    double stresses[6];
+    //変位を更新し、変位増分をゼロ処理
+    for(int point = 0;  point < global.subdomain.N_point; point++){
+        for(int i = 0; i < 3; i++){
+            global.subdomain.displacement[point][i] += global.subdomain.displacement_increment[point][i];
+            global.subdomain.displacement_increment[point][i] = 0.;
+        }
+    }
+
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        for(int i = 0; i < option.dim; i++){
+            for(int j = 0; j < option.dim; j++){
+                global.subdomain.deformation_gradients[point][i][j] = global.subdomain.current_deformation_gradients[point][i][j];
+            }
+        }
+
+        for(int i = 0; i < 6; i++){
+            global.subdomain.elastic_strains[point][i] = global.subdomain.current_elastic_strains[point][i];
+            global.subdomain.stresses[point][i] = global.subdomain.current_stresses[point][i];
+            global.subdomain.back_stresses[point][i] = global.subdomain.current_back_stresses[point][i];
+
+            stresses[i] = global.subdomain.stresses[point][i];  //相当応力の計算のためにポイントごとの応力ベクトルを用意
+        }
+
+        global.subdomain.equivalent_stresses[point] = calc_equivalent_stress(stresses);
+
+        global.subdomain.equivalent_plastic_strains[point] += global.subdomain.equivalent_plastic_strain_increments[point];
+
+        global.subdomain.equivalent_plastic_strain_increments[point] = 0.;
+
+        global.subdomain.yield_stresses[point] = global.subdomain.current_yield_stresses[point];
+    }
+
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        for(int i = 0; i < option.dim; i++){
+            global.subdomain.nodal_displacements[node][i] = global.subdomain.nodal_displacement_increments[node][i];
+            global.subdomain.nodal_displacement_increments[node][i] = 0.;
+        }
+    }
+}
