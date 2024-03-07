@@ -37,6 +37,18 @@ void generate_coefficient_matrix(){
         global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress);
         assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point, point);
     }
+
+    FILE *fp_debug;
+    fp_debug = fopen("fp_debug.dat","w");
+    for(int i = 0; i < 3*global.subdomain.N_point; i++){
+        for(int j = 0; j < 3*global.subdomain.N_point; j++){
+            fprintf(fp_debug, "%5.4e    ", global.subdomain.Global_K[global.subdomain.N_point * option.dim * i + j]);
+        }
+        fprintf(fp_debug, "\n");
+    }
+    fprintf(fp_debug,"\n");
+    fclose(fp_debug);
+    exit(-1);
     #if 1
     //ペナルティ項（安定化項以外）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
@@ -119,7 +131,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
 
     //弾性Dマトリクスの計算
     generateElasticDMatrix(d_matrix);
-
+    
     //有限ひずみのDマトリクスに修正
     modify_d_matrix_with_finite_strain(d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
 
@@ -143,6 +155,8 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
         }
     }
 
+
+    #if 1
     //非線形Bマトリクスの計算
     generate_nonlinear_b_matrix(b_t_NL_matrix, point_n);
 
@@ -159,6 +173,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
         }
     }
     
+
     for(int i = 0; i < option.dim * (N_support + 1); i++){
         for(int j = 0; j < option.dim * (N_support + 1); j++){
             double ke_ij = 0;
@@ -168,6 +183,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
             ke_matrix[i][j] += ke_ij * jacobian;
         }
     }
+    #endif
 
 }
 
@@ -253,7 +269,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
     generateElasticDMatrix(d_matrix);
 
     //有限ひずみのDマトリクスに修正
-    modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
+    //modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
 
     //ガウス点の座標と重み、ヤコビアンの計算
     Gauss_points_and_weighting_factors(N_qu, X, w);

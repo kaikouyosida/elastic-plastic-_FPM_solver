@@ -27,10 +27,11 @@ void analize_by_NewtonRapdon(){
             
             update_field_and_internal_forces();
             update_external_force(time_step);
+
             residual_norm = calc_global_force_residual_norm();
             if(residual_norm <= option.NR_tol) break;
-            generate_coefficient_matrix();
 
+            generate_coefficient_matrix();
             
             ImposeDirichretResidual(iteration_step + 1);
             ImposeDirichletTangentialMatrix();
@@ -75,7 +76,7 @@ void analize_by_NewtonRapdon(){
 
             update_nodal_displacement_increment();
 
-            printf("error norm : %+15.14e\n", residual_norm);
+            printf("error norm in loop %d: %+15.14e\n", iteration_step+1,residual_norm);
             if(iteration_step == 1000){
                 printf("Iteration is not converged\n");
                 exit(-1);
@@ -109,11 +110,11 @@ void Linear_analization(){
     }
     
     solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
-    #if 0
+    #if 1
         fp_debug = fopen("debug.dat", "w");
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < 3; j++){
-                fprintf(fp_debug, "%+15.14e  ", du[3*i+j]);
+                fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_residual_force[i*3+j]);
             }
             fprintf(fp_debug, "\n");
         }

@@ -11,6 +11,12 @@ SRCS += matrix.c vector.c tensor.c scalar.c GetGaussPoints.c ImposeDirichretCond
 SRCS += Output.c
 OBJS = $(SRCS:.c=.o)
 
+run:
+	make -C Data_Files_Input
+	make all
+	
+all: $(TARGET)
+
 $(TARGET): $(OBJS)
 	$(CC) -o $@ $^ $(CFLAGS)
 
@@ -19,5 +25,3 @@ $(OBJS): $(SRCS)
 
 clean:
 	-rm -f $(OBJS) $(TARGET)
-
-all: clean $(OBJS) $(TARGET)
