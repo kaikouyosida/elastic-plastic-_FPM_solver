@@ -17,6 +17,10 @@ extern Option option;
 
 
 void update_field_and_internal_forces(){
+
+    FILE *fp_debug;
+    fp_debug = fopen("debug_stress.dat", "w");
+    fprintf(fp_debug, "stress      /        σxx     /       σyy     /       σzz     /       σxy     /       σyz     /       σzx     \n");
     
     double subdomain_internal_force[20][3];
     double d_matrix[6][6];          //Dマトリクス
@@ -220,6 +224,8 @@ void update_field_and_internal_forces(){
 
                 current_stresses[i] = stress_i;
             }
+        fprintf(fp_debug, "%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
+
 
         //試行相対応力の計算({sigma}^trial = {sigma}^trial - {beta})
         for (int i = 0; i < 6; i++)
@@ -329,6 +335,8 @@ void update_field_and_internal_forces(){
             for(int i = 0; i < 6; i++)
                 all_stress[point][i] = current_stresses[i];
     }
+    fclose(fp_debug);
+    
     //内力ベクトルのペナルティ項を計算
     calc_internal_force_penalty(all_stress, 1);
     calc_internal_force_penalty_stabilization(2);

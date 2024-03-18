@@ -59,7 +59,7 @@ void analize_by_NewtonRapdon(){
                 for(int j = 0; j < option.dim; j++)
                     global.subdomain.displacement_increment[i][j] += du[option.dim * i + j];
             
-            #if 0
+            #if 1
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             fprintf(fp_debug, "point        /displacement           x           y           z\n");
@@ -108,9 +108,9 @@ void Linear_analization(){
         printf("Error: du's Memory is not enough\n");
         exit(-1);
     }
-    
+    printf("Now solving!!\n");
     solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
-    #if 1
+    #if 0
         fp_debug = fopen("debug.dat", "w");
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < 3; j++){
@@ -119,9 +119,11 @@ void Linear_analization(){
             fprintf(fp_debug, "\n");
         }
         fclose(fp_debug);
+        exit(-1);
     #endif 
 
-    Output_Linear_strain_data(du);    
+    Output_Linear_strain_data(du);
+        
 
     free(du);
     break_field();
