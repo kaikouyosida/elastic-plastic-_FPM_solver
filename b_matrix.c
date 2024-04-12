@@ -94,7 +94,6 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     }
     G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
 
-
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
             latest_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]

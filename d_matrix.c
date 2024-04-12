@@ -275,4 +275,8 @@ void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], d
     }
     
     conver4thOrderTensorToMatrix(c_matrix, consistent_d_tensor);
+
+    #if 1
+    
+    #endif
 }
