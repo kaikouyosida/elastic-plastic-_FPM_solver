@@ -24,7 +24,7 @@ void generate_coefficient_matrix(){
 
     global.count = 0;
 
-    #if 0
+    #if 1
     //接線剛性マトリクスの領域積分の項を計算
     for(int point = 0; point < global.subdomain.N_point; point++){
 
@@ -98,21 +98,9 @@ void generate_coefficient_matrix(){
         fclose(debug_matrix);
         #endif
     }
-    exit(-1);
+    //exit(-1);
     #endif 
-    #if 0
-    FILE *fp_debug;
-    fp_debug = fopen("Coefficient_matrix_for_debug/coefficient_domain_IP_nonlinear.dat","w");
-    for(int i = 0; i < 3*global.subdomain.N_point; i++){
-        for(int j = 0; j < 3*global.subdomain.N_point; j++){
-            fprintf(fp_debug, "%+5.4e    ", global.subdomain.Global_K[global.subdomain.N_point * option.dim * i + j]);
-        }
-        fprintf(fp_debug, "\n");
-    }
-    fprintf(fp_debug,"\n");
-    fclose(fp_debug);
-    exit(-1);
-    #endif
+    
     #if 1
     //ペナルティ項（安定化項）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
@@ -125,6 +113,19 @@ void generate_coefficient_matrix(){
         generate_subdomain_coefficient_matrix_for_StabilizationTerm(global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1], face, ke_matrix, 0);
         assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2 *face + 1], global.subdomain.pair_point_ib[2 *face + 1]);
     }
+    #endif
+    #if 0
+    FILE *fp_debug;
+    fp_debug = fopen("Coefficient_matrix_for_debug/coefficient_global_IP_nonlinear.dat","w");
+    for(int i = 0; i < 3*global.subdomain.N_point; i++){
+        for(int j = 0; j < 3*global.subdomain.N_point; j++){
+            fprintf(fp_debug, "%+5.4e    ", global.subdomain.Global_K[global.subdomain.N_point * option.dim * i + j]);
+        }
+        fprintf(fp_debug, "\n");
+    }
+    fprintf(fp_debug,"\n");
+    fclose(fp_debug);
+    exit(-1);
     #endif
 }
 
@@ -309,8 +310,8 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
 
     //弾性Dマトリクスの計算
     generateElasticDMatrix(d_matrix);
-    convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
-    conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
+    //convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
+    //conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
     #if 0
     if(face_n == 100){
         printf("%d\n",global.count);
@@ -328,16 +329,16 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
     #endif
 
     //有限ひずみのDマトリクスに修正
-    //modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
+    modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
 
     //ガウス点の座標と重み、ヤコビアンの計算
     Gauss_points_and_weighting_factors(N_qu, X, w);
-    jacobian = calc_surface_area(face_n) / 4.0;
+    //jacobian = calc_surface_area(face_n) / 4.0;
 
     //法線ベクトルの計算
-    calc_Ne_diagonal(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], face_n, global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, latest_point_XYZ, Ne_d);
+    calc_Ne_diagonal(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], global.subdomain.shared_face[face_n], global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, latest_point_XYZ, Ne_d);
     #if 0
-    if(face_n == 100){
+    if(face_n == 1){
         printf("%d\n",global.count);
         snprintf(FILE_name, 128, "Coefficient_matrix_for_debug/nonlinear_Ne_d_IP_num/nonlinear_Ne_d_IP%d_%d.dat",face_n, global.count);
         fp_debug = fopen(FILE_name, "w");
@@ -354,6 +355,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
     //ペナルティ項を計算
     for(int s = 0;  s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
+            jacobian = calc_area_change(face_n, s, t, X);
             for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -406,7 +408,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
             #endif
 
             #if 0
-            if(face_n == 0){
+            if(face_n == 100){
                 printf("%d\n",global.count);
                 snprintf(FILE_name, 128, "Coefficient_matrix_for_debug/nonlinear_IP_num/nonlinear_coefficient_IP%d_%d.dat",face_n, global.count);
                 fp_debug = fopen(FILE_name, "w");
@@ -536,7 +538,7 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(int point_n1, i
     he = distance(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], latest_point_XYZ);
 
     //ヤコビアンの計算
-    jacobian = calc_surface_area(face_n) / 4.0;
+    //jacobian = calc_surface_area(global.subdomain.shared_face[face_n]) / 4.0;
 
     //体積変化率の計算
     for(int i = 0; i < option.dim; i++){
@@ -551,11 +553,12 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(int point_n1, i
 
     //物質表記→空間表記する際の面積変化率(J/sqrt(nBn))の分子 ,sqrt(nBn) の計算
     //法線ベクトルの計算
-    calc_Ne_diagonal(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], face_n, global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, latest_point_XYZ, Ne_d);
+    calc_Ne_diagonal(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], global.subdomain.shared_face[face_n], global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, latest_point_XYZ, Ne_d);
     factor = calc_area_change_factor(global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], Ne_d);
     
     for(int s = 0; s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
+            jacobian = calc_area_change(face_n, s, t, X);
             for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -708,7 +711,7 @@ void generate_coefficient_linear(){
     char FILE_name[128];
     global.count = 0;
 
-    #if 0
+    #if 1
     //全体剛性マトリクスの計算（領域積分の項)
     for(int point = 0;  point < global.subdomain.N_point; point++){
         int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
@@ -760,7 +763,7 @@ void generate_coefficient_linear(){
         fclose(debug_matrix);
         #endif
     }
-    exit(-1);
+    //exit(-1);
     #endif
     #if 0
     fp_debug = fopen("Coefficient_matrix_for_debug/coeficient_IP_integral_linear.dat", "w");
@@ -787,7 +790,18 @@ void generate_coefficient_linear(){
         assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, global.subdomain.pair_point_ib[2*face+1], global.subdomain.pair_point_ib[2*face+1]);
     }
     #endif
-    
+     #if 1
+    fp_debug = fopen("Coefficient_matrix_for_debug/coefficient_global_IP_linear.dat","w");
+    for(int i = 0; i < 3*global.subdomain.N_point; i++){
+        for(int j = 0; j < 3*global.subdomain.N_point; j++){
+            fprintf(fp_debug, "%+5.4e    ", global.subdomain.Global_K[global.subdomain.N_point * option.dim * i + j]);
+        }
+        fprintf(fp_debug, "\n");
+    }
+    fprintf(fp_debug,"\n");
+    fclose(fp_debug);
+    exit(-1);
+    #endif
 }
 
 void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2, double (*ke_matrix)[60], int flag){
@@ -806,8 +820,8 @@ void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2,
     double N1TneD[60][6];
     FILE *fp_debug;
     char FILE_name[128];
-
-    double jacobian = calc_surface_area(face_n) / 4.0;
+    double jacobian;
+    //jacobian = calc_surface_area(global.subdomain.shared_face[face_n]) / 4.0;
 
     if(flag == 0){
         sign = 1.0;
@@ -825,7 +839,7 @@ void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2,
                 global.subdomain.vertex_offset, global.subdomain.node, global.subdomain.node_XYZ, global.subdomain.point_XYZ, Ne);
     
     generateElasticDMatrix(d_matrix);
-    #if 1
+    #if 0
     if(face_n == 100){
         printf("%d\n",global.count);
         snprintf(FILE_name, 128, "Coefficient_matrix_for_debug/linear_D_IP_num/linear_D_IP%d_%d.dat",face_n, global.count);
@@ -859,7 +873,7 @@ void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2,
     }
     #endif
     #if 0
-    if(face_n == 0){
+    if(face_n == 1){
         printf("%d\n",global.count);
         snprintf(FILE_name, 128, "Coefficient_matrix_for_debug/linear_Ne_IP_num/linear_Ne_IP%d_%d.dat",face_n, global.count);
         fp_debug = fopen(FILE_name, "w");
@@ -883,6 +897,7 @@ void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2,
 
     for(int s = 0; s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
+            jacobian = calc_area_change(face_n, s, t, X);
             for(int i = 0; i < option.dim; i++)
                 xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * global.subdomain.node_XYZ[option.dim*face_node[0]+i]
                         + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * global.subdomain.node_XYZ[option.dim*face_node[1]+i]
@@ -963,7 +978,7 @@ void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2,
             exit(-1);
             #endif
             #if 0
-            if(face_n == 3){
+            if(face_n == 100){
                 printf("%d\n",global.count);
                 snprintf(FILE_name, 128, "Coefficient_matrix_for_debug/linear_IP_num/linear_coefficient_IP%d_%d.dat",face_n, global.count);
                 fp_debug = fopen(FILE_name, "w");
@@ -995,6 +1010,7 @@ void generate_Linear_coefficient_stabilization(int face_n, int point_n1, int poi
     double N1T[60][3];
     double N2T[60][3];
     double factor;
+    double jacobian;
 
 
     //ke_matrixをゼロ処理
@@ -1002,7 +1018,7 @@ void generate_Linear_coefficient_stabilization(int face_n, int point_n1, int poi
         for(int j = 0; j < option.dim * (N2_support + 1); j++)
             ke_matrix[i][j] = 0.;
 
-    double jacobian = calc_surface_area(face_n) / 4.0;
+    //jacobian = calc_surface_area(face_n) / 4.0;
 
     double he = distance(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], global.subdomain.point_XYZ);
     factor = global.material.penalty / he;
@@ -1021,6 +1037,7 @@ void generate_Linear_coefficient_stabilization(int face_n, int point_n1, int poi
 
     for(int s = 0; s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
+            jacobian = calc_area_change(face_n, s, t, X);
             for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * global.subdomain.node_XYZ[option.dim*face_node[0]+i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * global.subdomain.node_XYZ[option.dim*face_node[1]+i]

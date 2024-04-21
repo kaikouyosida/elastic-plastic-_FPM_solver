@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<math.h>
 #include"scalar.h"
+#include"tensor.h"
 #include"type.h"
 
 extern Global global;
@@ -148,6 +149,50 @@ double calc_surface_area(int face_n){
     area2 = 0.5 * norm(edge1_cross_edge2, option.dim);
 
     return area1 + area2;
+}
+//物理空間座標→正規化座標に変換するためのスカラー値を計算
+double calc_area_change(int face_n, int s, int t, double *X){
+    int ref_num = global.subdomain.vertex_offset[face_n];
+    double transform_area = 0.;
+    double scalar = 0.;
+    double area_vector[3];
+    double e[3][3][3];
+    double dx_ds[3];
+    double dx_dt[3];
+    double x1[3];
+    double x2[3];
+    double x3[3];
+    double x4[3];
+    int node1 = global.subdomain.node[ref_num];
+    int node2 = global.subdomain.node[ref_num + 1];
+    int node3 = global.subdomain.node[ref_num + 2];
+    int node4 = global.subdomain.node[ref_num + 3];
+
+    alternating_matrix(e);
+    for(int i = 0; i < option.dim; i++){
+        x1[i] = global.subdomain.node_XYZ[option.dim * node1 + i] + global.subdomain.nodal_displacements[node1][i] + global.subdomain.nodal_displacement_increments[node1][i];
+        x2[i] = global.subdomain.node_XYZ[option.dim * node2 + i] + global.subdomain.nodal_displacements[node2][i] + global.subdomain.nodal_displacement_increments[node2][i];
+        x3[i] = global.subdomain.node_XYZ[option.dim * node3 + i] + global.subdomain.nodal_displacements[node3][i] + global.subdomain.nodal_displacement_increments[node3][i];
+        x4[i] = global.subdomain.node_XYZ[option.dim * node4 + i] + global.subdomain.nodal_displacements[node4][i] + global.subdomain.nodal_displacement_increments[node4][i];
+    }
+    for(int i = 0; i < 3 ; i++){
+        dx_ds[i] = -0.25 * (1.0 - X[t]) * x1[i] - 0.25 * (1.0 + X[t]) * x2[i] + 0.25 * (1.0 + X[t]) * x3[i] + 0.25 * (1.0 - X[t]) * x4[i];
+        dx_dt[i] = -0.25 * (1.0 - X[s]) * x1[i] + 0.25 * (1.0 - X[s]) * x2[i] + 0.25 * (1.0 + X[s]) * x3[i] - 0.25 * (1.0 + X[s]) * x4[i];
+    }
+    for(int i = 0; i < 3; i++){
+        double area_vector_i = 0.;
+        for(int j = 0; j < 3; j++){
+            for(int k = 0; k < 3; k++){
+                area_vector_i += dx_ds[j] * dx_dt[k] * e[j][k][i];
+            }
+        }
+        area_vector[i] = area_vector_i;
+    }
+    for(int i = 0; i < 3; i++)
+        scalar += area_vector[i] * area_vector[i];
+    scalar = sqrt(scalar);
+    
+    return scalar;
 }
 double dot_product(int N, double *vec1, double *vec2)
 {

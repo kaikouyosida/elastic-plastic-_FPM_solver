@@ -19,3 +19,4 @@ void calculateEigenprojections(double eigenprojections[3][3][3],
                                const double eigenvalues[3],
                                double tensor[3][3]);
 
+void alternating_matrix(double e[3][3][3]);

@@ -278,7 +278,7 @@ void update_field_and_internal_forces(){
 
                 current_stresses[i] = stress_i;
             }
-        //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_elastic_strains[0], current_elastic_strains[1], current_elastic_strains[2], current_elastic_strains[3], current_elastic_strains[4], current_elastic_strains[5]);
+        printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_elastic_strains[0], current_elastic_strains[1], current_elastic_strains[2], current_elastic_strains[3], current_elastic_strains[4], current_elastic_strains[5]);
         //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
 
 
@@ -366,7 +366,7 @@ void update_field_and_internal_forces(){
             for (int i = 0; i < 6; i++)
                     current_stresses[i] *= inverse_volume_change;
 
-            //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
+            //rintf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
 
 
             
@@ -499,7 +499,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
-        jacobian = calc_surface_area(global.subdomain.shared_face[face]) / 4.0;
+        //jacobian = calc_surface_area(global.subdomain.shared_face[face]) / 4.0;
 
         int N1_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face] + 1]
                         - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]];
@@ -516,6 +516,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
         //内部境界上での積分
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
+                jacobian = calc_area_change(face, s, t, X);
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -554,7 +555,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < 6; j++){
                         subdomain_internal_force_i += -0.5 * (N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face]][j]
-                                                        - N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
+                                                        + N1Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
                     }
                     subdomain_internal_force[i] = subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
@@ -572,7 +573,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < 6; j++){
                         subdomain_internal_force_i += 0.5 * (N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face]][j]
-                                                        - N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
+                                                        + N2Tne[i][j] * all_stress[global.subdomain.pair_point_ib[2 * face + 1]][j]);
                     }
                     subdomain_internal_force[i] = subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
@@ -640,7 +641,8 @@ void calc_internal_force_penalty_stabilization(int N_qu){
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
-        jacobian = calc_surface_area(global.subdomain.shared_face[face]) / 4.0;
+        //jacobian = calc_surface_area(global.subdomain.shared_face[face]) / 4.0;
+    
         he = distance(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1], point_XYZ);
 
         int N1_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face] + 1]
@@ -656,6 +658,7 @@ void calc_internal_force_penalty_stabilization(int N_qu){
                 face_node_XYZ[i][j] = node_XYZ[option.dim * face_node[i] + j];   
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
+                jacobian = calc_area_change(face, s,t,X);
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]

@@ -7,6 +7,7 @@ double dot_product(int N, double *vec1, double *vec2);
 void cross_product(int dim, double *vecA, double *vecB, double *AcrossB);
 double calc_subdomain_volume(int point_n);
 double calc_surface_area(int face_n);
+double calc_area_change(int face_n, int s, int t, double *X);  
 double norm(double *vec, int n);
 double distance(int dim, int i, int j, double *point_xyz);
 double calculate3x3MatrixTrace(double matrix[3][3]);

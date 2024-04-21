@@ -77,8 +77,8 @@ void analize_by_NewtonRapdon(){
 
             printf("error norm in loop %d: %+15.14e\n", iteration_step+1,residual_norm);
             if(iteration_step == 1000){
-                printf("Iteration is not converged\n");
-                exit(-1);
+            printf("Iteration is not converged\n");
+            exit(-1);
             }
             
         }

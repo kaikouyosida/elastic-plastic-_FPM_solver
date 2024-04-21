@@ -65,7 +65,7 @@ void update_external_force(int time){
     for(int face = 0; face < global.bc.N_t_face; face++){
         int N_support = global.subdomain.support_offset[global.bc.traction_point[face] + 1] - global.subdomain.support_offset[global.bc.traction_point[face]];
         
-        jacobian = calc_surface_area(global.bc.traction_face[face]) / 4.0;
+        //jacobian = calc_surface_area(global.bc.traction_face[face]) / 4.0;
 
         for(int i = 0; i < 4; i++)
             face_node[i] = global.subdomain.node[global.subdomain.vertex_offset[global.bc.traction_face[face]] + i];
@@ -76,7 +76,7 @@ void update_external_force(int time){
         
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
-            
+                jacobian = calc_area_change(face, s, t, X);
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
