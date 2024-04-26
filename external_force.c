@@ -120,6 +120,20 @@ void update_external_force(int time){
             }
             fprintf(fp_debug, "\n");
     #endif
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"debug_for_external/global_external_vector%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                fprintf(fp_debug,"%5d    ", i);
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_external_force[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+    #endif
     
     
     free(node_XYZ);

@@ -182,6 +182,7 @@ void Output_Linear_strain_data(double *du){
     }
     #endif
 
+    #if 0
     for(int point = 0; point < global.subdomain.N_point; point++){
         printf("%5d  ", point);
         for(int i = 0; i < 6; i++){
@@ -196,6 +197,7 @@ void Output_Linear_strain_data(double *du){
         }
         printf("\n");
     }
+    #endif
 
     strain_energy = calc_strain_energy_norm();
     double exact_strain_energy = 2.5*1.0e-6;        //←歪みエネルギの厳密解をここに入力

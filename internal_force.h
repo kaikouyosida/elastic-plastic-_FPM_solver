@@ -16,7 +16,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu);
 void calc_internal_force_penalty_stabilization(int N_qu);
 
 //残差ベクトルの計算
-double calc_global_force_residual_norm();
+double calc_global_force_residual_norm(int iteration_step);
 
 //節点変位の増分を更新
 void update_nodal_displacement_increment();

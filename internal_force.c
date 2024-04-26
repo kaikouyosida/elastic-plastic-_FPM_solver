@@ -11,13 +11,15 @@
 #include"ss_curve.h"
 #include"scalar.h"
 #include"GetGaussPoints.h"
+#include"ImposeDirichretCondition.h"
 
 extern Global global;
 extern Option option;
 
 void update_field_and_internal_forces(){
 
-    //FILE *fp_debug;
+    FILE *fp_debug;
+    char FILE_name[128];
     //fp_debug = fopen("debug_stress.dat", "w");
     //fprintf(fp_debug, "stress      /        σxx     /       σyy     /       σzz     /       σxy     /       σyz     /       σzx     \n");
     
@@ -192,7 +194,6 @@ void update_field_and_internal_forces(){
         #endif
 
         //変形勾配テンソル（初期配置に対してのテンソル）
-        
         for (int i = 0; i < 3; i++)
                     for (int j = 0; j < 3; j++)
                     {
@@ -206,6 +207,15 @@ void update_field_and_internal_forces(){
                         current_deformation_gradients[i][j]
                             = deformation_gradient_i_j;
                     }
+        #if 0
+        for(int i = 0; i < 3; i++){
+            for(int j = 0;  j < 3; j++){
+                printf("%+15.14e    ", current_deformation_gradients[i][j]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+        #endif
               
         //弾性左コーシーグリーンテンソルの計算([B]^e = exp(2 * {epsilon}^e))
         elastic_strain_tensor[0][0] = 2.0 * elastic_strains[0];
@@ -278,7 +288,7 @@ void update_field_and_internal_forces(){
 
                 current_stresses[i] = stress_i;
             }
-        printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_elastic_strains[0], current_elastic_strains[1], current_elastic_strains[2], current_elastic_strains[3], current_elastic_strains[4], current_elastic_strains[5]);
+        //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_elastic_strains[0], current_elastic_strains[1], current_elastic_strains[2], current_elastic_strains[3], current_elastic_strains[4], current_elastic_strains[5]);
         //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
 
 
@@ -297,6 +307,7 @@ void update_field_and_internal_forces(){
                 for (int i = 0; i < 6; i++)
                     current_back_stresses[i] = back_stresses[i];
             }else{
+                //printf("status\n");
                 double hardening_stress_increment;
                 double current_relative_hydrostatic_stress;
 
@@ -359,6 +370,7 @@ void update_field_and_internal_forces(){
                 current_stresses[1] += current_relative_hydrostatic_stress;
                 current_stresses[2] += current_relative_hydrostatic_stress; 
             }
+
             //Kirchhoff応力からCauchy応力の計算
             double inverse_volume_change
                 = 1.0 / calc_3x3matrix_determinant(current_deformation_gradients);
@@ -366,21 +378,40 @@ void update_field_and_internal_forces(){
             for (int i = 0; i < 6; i++)
                     current_stresses[i] *= inverse_volume_change;
 
-            //rintf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
+            //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
+            //printf("inverse = %+15.14e\n", inverse_volume_change);
 
+            #if 0
+            fp_debug = fopen("Data_Files_Output/Output_stress.dat", "r");
+            if(fp_debug == NULL){
+                printf("File is not open\n");
+                exit(-1);
+            }
+            fscanf(fp_debug, "%*[^\n]\n");
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < option.dim; j++){
+                    if(i == point){
+                        fscanf(fp_debug,"%*d %lf %lf %lf %lf %lf %lf\n", &current_stresses[0], &current_stresses[1], &current_stresses[2], &current_stresses[3], &current_stresses[4], &current_stresses[5]);
+                    }else{
+                        fscanf(fp_debug, "\n");
+                    }
+                }
+            }
+            fclose(fp_debug);
 
-            
+            //printf("%lf %lf %lf %lf %lf %lf\n", current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
+            #endif
             double volume = calc_subdomain_volume(point);
-            
+            //printf("%+15.14e\n",  volume);
+            #if 1
             //内力ベクトル一項目を計算（[B]^T * {sigma} * dV）
             for(int i = 0; i < N_support + 1; i++){
                 for(int j = 0; j < option.dim; j++){
                     double force_j = 0.;
-
                     for(int k = 0; k < 6; k++)
                         force_j += b_t_matrix[option.dim * i + j][k] * current_stresses[k];
                     
-                    subdomain_internal_force[i][j] += force_j * volume;
+                    subdomain_internal_force[i][j] = force_j * volume;
                 }
             }
             for(int i = 0; i < N_support; i++){
@@ -388,20 +419,115 @@ void update_field_and_internal_forces(){
                     global.subdomain.global_internal_force[support[i]][j] += subdomain_internal_force[i + 1][j];
                 }
             }
+
             for(int i = 0; i < option.dim; i++)
                 global.subdomain.global_internal_force[point][i] += subdomain_internal_force[0][i];
+            #endif 
             //各サブドメインにおける応力を記録（ペナルティ項の計算に用いる）
             for(int i = 0; i < 6; i++)
                 all_stress[point][i] = current_stresses[i];
     }
-    //fclose(fp_debug_du);
+    #if  0
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        printf("%5d    ", i);
+        for(int j = 0; j < 3; j++){
+            printf("%+15.14e  ", global.subdomain.global_internal_force[i][j]);
+        }
+        printf("\n");
+    }
+    #endif 
     //fclose(fp_debug);
+    
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"debug_for_internal/1st_internal_vector/global_internal_vector%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                fprintf(fp_debug,"%5d    ", i);
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+    #endif 
     
     //内力ベクトルのペナルティ項を計算
     calc_internal_force_penalty(all_stress, 1);
+    #if  0
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        printf("%5d    ", i);
+        for(int j = 0; j < 3; j++){
+            printf("%+15.14e  ", global.subdomain.global_internal_force[i][j]);
+        }
+        printf("\n");
+    }
+    #endif 
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"debug_for_internal/2nd_internal_vector/global_internal_vector%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                fprintf(fp_debug,"%5d    ", i);
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+    #endif
+    #if 0
+    FILE *fp_debug_du;
+    if((fp_debug_du = fopen("Data_Files_Output/Output_displacement.dat",  "r")) == NULL){
+        printf("File is not enough\n");
+        exit(-1);
+    }
+    fscanf(fp_debug_du, "%*[^\n]\n");
+    for(int i = 0; i < global.subdomain.N_point; i++)
+        fscanf(fp_debug_du,  "%*d %lf %lf %lf\n", &global.subdomain.displacement_increment[i][0], &global.subdomain.displacement_increment[i][1], &global.subdomain.displacement_increment[i][2]);
+    //for(int i = 0; i < global.subdomain.N_point; i++)
+        //printf("%+15.14e %+15.14e %+15.14e\n", global.subdomain.displacement_increment[i][0], global.subdomain.displacement_increment[i][1], global.subdomain.displacement_increment[i][2]);
+    #endif     
     calc_internal_force_penalty_stabilization(2);
-
-
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"debug_for_internal/3rd_internal_vector/global_internal_vector%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                fprintf(fp_debug,"%5d    ", i);
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+    #endif
+    #if  0
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j = 0; j < 3; j++){
+            printf("%5d %+15.14e\n", 3*i+j, global.subdomain.global_internal_force[i][j]);
+        }
+    }
+    #endif
+    #if 0
+            global.count++;
+            snprintf(FILE_name, 128,"debug_for_internal/global_internal_vector%d.dat", global.count);
+            fp_debug = fopen(FILE_name,"w");
+            
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                fprintf(fp_debug,"%5d    ", i);
+                for(int j = 0; j < 3; j++){
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+    #endif
+    //fclose(fp_debug_du);
+    //exit(-1);
     free_matrix(all_stress);
 }
 
@@ -625,16 +751,16 @@ void calc_internal_force_penalty_stabilization(int N_qu){
 
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
-            point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                        + global.subdomain.displacement[i][j]
-                                        + global.subdomain.displacement_increment[i][j];
+            point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j];
+                                        //+ global.subdomain.displacement[i][j]
+                                        //+ global.subdomain.displacement_increment[i][j];
         }
     }
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim; j++){
-            node_XYZ[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j]
-                                        + global.subdomain.nodal_displacements[i][j]
-                                        + global.subdomain.nodal_displacement_increments[i][j];
+            node_XYZ[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j];
+                                        //+ global.subdomain.nodal_displacements[i][j]
+                                        //+ global.subdomain.nodal_displacement_increments[i][j];
         }
     }
     
@@ -656,6 +782,7 @@ void calc_internal_force_penalty_stabilization(int N_qu){
         for(int i = 0; i < 4; i++)
             for(int j = 0; j < option.dim; j++)
                 face_node_XYZ[i][j] = node_XYZ[option.dim * face_node[i] + j];   
+
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
                 jacobian = calc_area_change(face, s,t,X);
@@ -716,7 +843,7 @@ void calc_internal_force_penalty_stabilization(int N_qu){
     free(point_XYZ);
 }
 
-double calc_global_force_residual_norm(){
+double calc_global_force_residual_norm(int iteration_step){
     double global_f_norm = 0., global_r_norm = 0.;
     char FILE_name[128];
     FILE *fp_debug;
@@ -726,9 +853,11 @@ double calc_global_force_residual_norm(){
             global.subdomain.global_residual_force[option.dim * i + j]
                  =  global.subdomain.global_external_force[i][j] - global.subdomain.global_internal_force[i][j];
     
+    
+            ImposeDirichretResidual(iteration_step + 1);
+    
     #if 0
-            global.count++;
-            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", global.count);
+            snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < 3; j++){
@@ -736,6 +865,7 @@ double calc_global_force_residual_norm(){
                 }
                 fprintf(fp_debug, "\n");
             }
+            fclose(fp_debug);
     #endif
     
     //ノルムの計算
@@ -746,8 +876,17 @@ double calc_global_force_residual_norm(){
         }
     global_f_norm = sqrt(global_f_norm);
     global_r_norm = sqrt(global_r_norm);
+ 
+    if(iteration_step == 0){
+        global.temp = global_r_norm;
+    }
     
-    return global_r_norm / global_f_norm;
+    if(global_f_norm == 0){
+        return global_r_norm / global.temp;
+    }else{
+        //printf("%d\n", iteration_step);
+        return global_r_norm / global_f_norm;
+    }
 }
 
 void update_nodal_displacement_increment(){

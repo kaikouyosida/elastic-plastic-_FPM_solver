@@ -329,3 +329,36 @@ void calc_Ne_diagonal(int dim , int subdomain_n1, int subdomain_n2, int face, in
 	Ne_d[1][0] = 0.0;       Ne_d[1][1] = Ne[0][0];	Ne_d[1][2] = 0.0;		Ne_d[1][3] = 0.0   ;		Ne_d[1][4] = Ne[1][1]; 	Ne_d[1][5] = 0.0;      Ne_d[1][6] = 0.0;			Ne_d[1][7] = Ne[2][2]; 	Ne_d[1][8] = 0.0;
 	Ne_d[2][0] = 0.0;		Ne_d[2][1] = 0.0;		Ne_d[2][2] = Ne[0][0];	Ne_d[2][3] = 0.0   ;		Ne_d[2][4] = 0.0;	 	Ne_d[2][5] = Ne[1][1]; Ne_d[2][6] = 0.0;	 		Ne_d[2][7] = 0.0;		Ne_d[2][8] = Ne[2][2];	
 }
+
+
+double calculate3x3MatrixDeterminant(double matrix[3][3])
+{
+    return
+        matrix[0][0] * matrix[1][1] * matrix[2][2]
+        + matrix[0][1] * matrix[1][2] * matrix[2][0]
+        + matrix[0][2] * matrix[1][0] * matrix[2][1]
+        - matrix[0][0] * matrix[1][2] * matrix[2][1]
+        - matrix[0][1] * matrix[1][0] * matrix[2][2]
+        - matrix[0][2] * matrix[1][1] * matrix[2][0];
+}
+double invert3x3Matrix(double matrix_out[3][3],
+                       double matrix[3][3])
+{
+
+    const double determinant = calculate3x3MatrixDeterminant(matrix);
+    const double inverse_determinant = 1.0 / determinant;
+
+    matrix_out[0][0] = (matrix[1][1] * matrix[2][2] - matrix[2][1] * matrix[1][2]) * inverse_determinant;
+    matrix_out[0][1] = (matrix[2][1] * matrix[0][2] - matrix[0][1] * matrix[2][2]) * inverse_determinant;
+    matrix_out[0][2] = (matrix[0][1] * matrix[1][2] - matrix[1][1] * matrix[0][2]) * inverse_determinant;
+
+    matrix_out[1][0] = (matrix[1][2] * matrix[2][0] - matrix[2][2] * matrix[1][0]) * inverse_determinant;
+    matrix_out[1][1] = (matrix[2][2] * matrix[0][0] - matrix[0][2] * matrix[2][0]) * inverse_determinant;
+    matrix_out[1][2] = (matrix[0][2] * matrix[1][0] - matrix[1][2] * matrix[0][0]) * inverse_determinant;
+
+    matrix_out[2][0] = (matrix[1][0] * matrix[2][1] - matrix[2][0] * matrix[1][1]) * inverse_determinant;
+    matrix_out[2][1] = (matrix[2][0] * matrix[0][1] - matrix[0][0] * matrix[2][1]) * inverse_determinant;
+    matrix_out[2][2] = (matrix[0][0] * matrix[1][1] - matrix[1][0] * matrix[0][1]) * inverse_determinant;
+
+    return determinant;
+}

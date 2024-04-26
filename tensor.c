@@ -20,7 +20,7 @@ void calculateTensorExponent(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    const double taylor_series_tolerance = 1.0e-4;
+    const double taylor_series_tolerance = 1.0e-15;
     const int taylor_series_max_iteration_count = 1000;
 
     double power_tensor[3][3], previous_power_tensor[3][3];
@@ -84,7 +84,7 @@ void calculateTensorLogarithm(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    const double taylor_series_tolerance = 1.0E-4;
+    const double taylor_series_tolerance = 1.0E-15;
     const int taylor_series_max_iteration_count = 1000;
 
     double tensor[3][3], square_tensor[3][3];
@@ -98,7 +98,7 @@ void calculateTensorLogarithm(double (*tensor_out)[3], double (*tensor_in)[3])
             square_tensor[i][j] = tensor_in[i][j];
     for (i = 0; i < 3; i++)
         square_tensor[i][i] += 1.0;
-    inverse_mat3x3(option.dim, square_tensor,  tensor);
+    invert3x3Matrix(tensor, square_tensor);
     for (i = 0; i < 3; i++)
         for (j = 0; j < 3; j++)
             tensor[i][j] *= -2.0;

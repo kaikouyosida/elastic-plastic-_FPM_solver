@@ -122,5 +122,5 @@ typedef struct{
 
     int buf;                                        //バッファ
     int count;                                      //カウンタ
-    
+    double temp;
 } Global;

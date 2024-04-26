@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<math.h>
 #include"type.h"
 #include"fpm.h"
 #include"field.h"
@@ -23,16 +24,16 @@ void analize_by_NewtonRapdon(){
     init_field();           //変数を初期化
 
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
+        option.time = option.Delta_time * (time_step + 1);
+        option.time_old = option.Delta_time * time_step;
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
-            
+
             update_field_and_internal_forces();
             update_external_force(time_step);
-
-            residual_norm = calc_global_force_residual_norm();
+            residual_norm = calc_global_force_residual_norm(iteration_step);
             if(residual_norm <= option.NR_tol) break;
             generate_coefficient_matrix();
-            printf("status\n");
-            ImposeDirichretResidual(iteration_step + 1);
+            //printf("status\n");
             ImposeDirichletTangentialMatrix();
 
             #if 0
@@ -72,13 +73,23 @@ void analize_by_NewtonRapdon(){
             fclose(fp_debug);
             #endif
             free(du);
+            #if 0
+            double u_norm = 0.;
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < option.dim; j++){
+                    u_norm += du[option.dim * i + j] * du[option.dim * i + j];
+                }
+            }
+            u_norm = sqrt(u_norm);
+            printf("%+15.14e\n", u_norm);
+            #endif
 
             update_nodal_displacement_increment();
 
-            printf("error norm in loop %d: %+15.14e\n", iteration_step+1,residual_norm);
+            printf("error norm in loop %d: %+15.14e\n", iteration_step+1, residual_norm);
             if(iteration_step == 1000){
-            printf("Iteration is not converged\n");
-            exit(-1);
+                printf("Iteration is not converged\n");
+                exit(-1);
             }
             
         }
@@ -97,9 +108,10 @@ void Linear_analization(){
 
     init_field();
     update_external_force(0);
-    global.buf = calc_global_force_residual_norm();
+    global.buf = calc_global_force_residual_norm(1);
+    printf("status\n");
     generate_coefficient_linear();
-    ImposeDirichretResidual(1);
+    printf("status\n");
     ImposeDirichletTangentialMatrix();
     
     //求解用の変数ベクトルを用意
