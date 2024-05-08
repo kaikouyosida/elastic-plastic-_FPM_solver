@@ -10,13 +10,13 @@ void calculateTensorLogarithmDerivative(double tensor_out[3][3][3][3],
                                         
 void calculateIsotropicTensorFunctionDerivative(double tensor_out[3][3][3][3],
                                                 double tensor_in[3][3],
-                                                double (*function)(const double variable),
-                                                double (*function_derivative)(const double variable));
+                                                double (*function)(double variable),
+                                                double (*function_derivative)(double variable));
                                                 
 void calculateEigenvalues(double eigenvalues[3],
                           double tensor[3][3]);
 void calculateEigenprojections(double eigenprojections[3][3][3],
-                               const double eigenvalues[3],
+                               double eigenvalues[3],
                                double tensor[3][3]);
 
 void alternating_matrix(double e[3][3][3]);

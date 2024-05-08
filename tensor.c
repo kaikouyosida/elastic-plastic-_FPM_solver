@@ -8,7 +8,7 @@
 #include"matrix.h"
 
 extern Option option;
-static const double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
+static double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
                                              {0.0, 1.0, 0.0},
                                              {0.0, 0.0, 1.0}};
 
@@ -20,8 +20,8 @@ void calculateTensorExponent(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    const double taylor_series_tolerance = 1.0e-15;
-    const int taylor_series_max_iteration_count = 1000;
+    double taylor_series_tolerance = 1.0e-15;
+    int taylor_series_max_iteration_count = 1000;
 
     double power_tensor[3][3], previous_power_tensor[3][3];
     double factorial;
@@ -84,8 +84,8 @@ void calculateTensorLogarithm(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    const double taylor_series_tolerance = 1.0E-15;
-    const int taylor_series_max_iteration_count = 1000;
+    double taylor_series_tolerance = 1.0E-15;
+    int taylor_series_max_iteration_count = 1000;
 
     double tensor[3][3], square_tensor[3][3];
     double power_tensor[3][3], previous_power_tensor[3][3];
@@ -378,10 +378,10 @@ void calculateTensorLogarithmDerivative(double tensor_out[3][3][3][3],
 
 void calculateIsotropicTensorFunctionDerivative(double tensor_out[3][3][3][3],
                                                 double tensor_in[3][3],
-                                                double (*function)(const double variable),
-                                                double (*function_derivative)(const double variable))
+                                                double (*function)(double variable),
+                                                double (*function_derivative)(double variable))
 {
-    double eigenvalue_tolerance = 1.0e-3;
+    double eigenvalue_tolerance = 1.0e-14;
 
     double new_eigenvalues[3];
     double new_eigenvalue_derivatives[3];
@@ -427,29 +427,29 @@ void calculateIsotropicTensorFunctionDerivative(double tensor_out[3][3][3][3],
     for (m = 0; m < 3; m++)
         if (fabs(eigenvalues[(m + 1) % 3] - eigenvalues[(m + 2) % 3]) <= tolerance)
         {
-            const double s1
+            double s1
                 = (new_eigenvalues[m] - new_eigenvalues[(m + 2) % 3])
                 / calculateSquare(eigenvalues[m] - eigenvalues[(m + 2) % 3])
                 - new_eigenvalue_derivatives[(m + 2) % 3]
                 / (eigenvalues[m] - eigenvalues[(m + 2) % 3]);
-            const double s2
+            double s2
                 = 2.0 * eigenvalues[(m + 2) % 3]
                 * (new_eigenvalues[m] - new_eigenvalues[(m + 2) % 3])
                 / calculateSquare(eigenvalues[m] - eigenvalues[(m + 2) % 3])
                 - (eigenvalues[m] + eigenvalues[(m + 2) % 3])
                 / (eigenvalues[m] - eigenvalues[(m + 2) % 3])
                 * new_eigenvalue_derivatives[(m + 2) % 3];
-            const double s3
+            double s3
                 = 2.0
                 * (new_eigenvalues[m] - new_eigenvalues[(m + 2) % 3])
                 / calculateCube(eigenvalues[m] - eigenvalues[(m + 2) % 3])
                 - (new_eigenvalue_derivatives[m] + new_eigenvalue_derivatives[(m + 2) % 3])
                 / calculateSquare(eigenvalues[m] - eigenvalues[(m + 2) % 3]);
-            const double s4
+            double s4
                 = eigenvalues[(m + 2) % 3] * s3;
-            const double s5
+            double s5
                 = s4;
-            const double s6
+            double s6
                 = calculateSquare(eigenvalues[(m + 2) % 3]) * s3;
 
             for (i = 0; i < 3; i++)
@@ -481,18 +481,18 @@ void calculateIsotropicTensorFunctionDerivative(double tensor_out[3][3][3][3],
 
                     for (m = 0; m < 3; m++)
                     {
-                        const double s1
+                        double s1
                             = new_eigenvalues[m]
                             / ((eigenvalues[m] - eigenvalues[(m + 1) % 3])
                                * (eigenvalues[m] - eigenvalues[(m + 2) % 3]));
-                        const double s2
+                        double s2
                             = s1
                             * (eigenvalues[(m + 1) % 3] + eigenvalues[(m + 2) % 3]);
-                        const double s3
+                        double s3
                             = s1
                             * ((eigenvalues[m] - eigenvalues[(m + 1) % 3])
                                + (eigenvalues[m] - eigenvalues[(m + 2) % 3]));
-                        const double s4
+                        double s4
                             = s1
                             * (eigenvalues[(m + 1) % 3] - eigenvalues[(m + 2) % 3]);
 
@@ -518,7 +518,7 @@ void calculateEigenvalues(double eigenvalues[3],
                           double tensor[3][3])
 #if 1
 {
-    const double discriminant_tolerance = 1.0e-3;
+    double discriminant_tolerance = 1.0e-14;
 
     double square_tensor[3][3];
     double i1, i2, i3;
@@ -541,7 +541,7 @@ void calculateEigenvalues(double eigenvalues[3],
     if (q < 0.0
         || fabs(q) <= discriminant_tolerance * (i1 * i1 / 9.0))
     {
-        const double b = i1 / 3.0;
+        double b = i1 / 3.0;
 
         eigenvalues[0] = b;
         eigenvalues[1] = b;
@@ -550,8 +550,8 @@ void calculateEigenvalues(double eigenvalues[3],
     else if (r - sqrt_q3 > 0
              || fabs(r - sqrt_q3) <= discriminant_tolerance * fabs(sqrt_q3))
     {
-        const double a = sqrt(q);
-        const double b = i1 / 3.0;
+        double a = sqrt(q);
+        double b = i1 / 3.0;
 
         eigenvalues[0] = -2.0 * a + b;
         eigenvalues[1] = a + b;
@@ -560,8 +560,8 @@ void calculateEigenvalues(double eigenvalues[3],
     else if (r + sqrt_q3 < 0
              || fabs(r + sqrt_q3) <= discriminant_tolerance * fabs(sqrt_q3))
     {
-        const double a = sqrt(q);
-        const double b = i1 / 3.0;
+        double a = sqrt(q);
+        double b = i1 / 3.0;
 
         eigenvalues[0] = -a + b;
         eigenvalues[1] = 2.0 * a + b;
@@ -569,11 +569,11 @@ void calculateEigenvalues(double eigenvalues[3],
     }
     else
     {
-        const double theta = acos(r / sqrt_q3) / 3.0;
-        const double cos_theta = cos(theta);
-        const double sin_theta = sin(theta);
-        const double a = sqrt(q);
-        const double b = i1 / 3.0;
+        double theta = acos(r / sqrt_q3) / 3.0;
+        double cos_theta = cos(theta);
+        double sin_theta = sin(theta);
+        double a = sqrt(q);
+        double b = i1 / 3.0;
 
         eigenvalues[0] = -2.0 * a * cos_theta + b;
         eigenvalues[1] = a * (cos_theta + sqrt(3.0) * sin_theta) + b;
@@ -587,7 +587,7 @@ void calculateEigenvalues(double eigenvalues[3],
 #endif
 
 void calculateEigenprojections(double eigenprojections[3][3][3],
-                               const double eigenvalues[3],
+                               double eigenvalues[3],
                                double tensor[3][3])
 {
     double square_tensor[3][3];
@@ -599,11 +599,11 @@ void calculateEigenprojections(double eigenprojections[3][3][3],
     /* Calculate eigenprojections */
     for (i = 0; i < 3; i++)
     {
-        const double i1
+        double i1
             = calculate3x3MatrixTrace(tensor);
-        const double i3
+        double i3
             = calc_3x3matrix_determinant(tensor);
-        const double coefficient
+        double coefficient
             = eigenvalues[i]
             / (2.0 * calculateCube(eigenvalues[i])
                - i1 * calculateSquare(eigenvalues[i])

@@ -60,6 +60,22 @@ void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_s
     //DマトリクスからDテンソルへ変換
     convertSymmetric4thOrderMatrixToTensor(d_tensor, d_matrix);
 
+    //for(int i = 0; i < 6; i++)
+        //printf("%+15.14e    ", trial_elastic_strains[i]);
+    
+    //printf("\n");
+
+    //for(int i = 0; i < 6; i++)
+        //printf("%+15.14e    ", current_stresses[i]);
+    //printf("\n");
+    //for(int i = 0; i < 3; i++){
+        //for(int j = 0; j < 3; j++){
+            //printf("%+8.7e  ", current_deformation_gradient[i][j]);
+        //}
+        //printf("\n");
+    //}
+    //printf("\n");
+
     //試行弾性左コーシーグリーンテンソルの計算
     trial_elastic_strain_tensor[0][0] = 2.0 * trial_elastic_strains[0];
     trial_elastic_strain_tensor[0][1] = 2.0 * 0.5 * trial_elastic_strains[3];
@@ -141,11 +157,9 @@ void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_s
 void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], double (*d_matrix)[6], double *current_stresses, double *trial_elastic_strains, double (*current_deformation_gradient)[3]){
     double consistent_d_tensor[3][3][3][3];
     double A_tensor[3][3][3][3];
-    double AF_tensor[3][3][3][3];
     double d_tensor[3][3][3][3];
     double l_tensor[3][3][3][3];
     double b_tensor[3][3][3][3];
-    double F_stress[3][3];
     double current_stress_tensor[3][3];
     double trial_elastic_left_cauchy_green_deformations[3][3];
     double trial_elastic_strain_tensor[3][3];
@@ -153,12 +167,12 @@ void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], d
     double inverse_volume_change;
 
     //変形勾配テンソルの逆行列
-    inverse_mat3x3(option.dim, current_deformation_gradient, inverse_deformation_grad);
+    invert3x3Matrix(inverse_deformation_grad, current_deformation_gradient);
 
     //DマトリクスからDテンソルへ変換
     convertSymmetric4thOrderMatrixToTensor(d_tensor, d_matrix);
 
-    //試行弾性左コーシーグリーンテンソルの計算
+    //試行弾性左コーシーグリーンテンソルの計算(B=exp[2ε^e])
     trial_elastic_strain_tensor[0][0] = 2.0 * trial_elastic_strains[0];
     trial_elastic_strain_tensor[0][1] = 2.0 * 0.5 * trial_elastic_strains[3];
     trial_elastic_strain_tensor[0][2] = 2.0 * 0.5 * trial_elastic_strains[5];
@@ -197,7 +211,7 @@ void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], d
     current_stress_tensor[2][1] = current_stresses[4];
     current_stress_tensor[2][2] = current_stresses[2];
 
-    //接線係数の計算 (AF{F^-1} - Fσ{F^-1})
+    //接線係数の計算
     for (int i = 0; i < option.dim; i++)
         for (int j = 0; j < option.dim; j++)
             for (int k = 0; k < option.dim; k++)
@@ -231,52 +245,33 @@ void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], d
         for(int j = 0; j < option.dim; j++){
             for(int k = 0; k < option.dim; k++){
                 for(int l = 0; l < option.dim; l++){
-                    double d_i_j_k_l = 0.;
-                    for(int m = 0; m < option.dim; m++){
-                        d_i_j_k_l += A_tensor[i][m][k][l] * inverse_deformation_grad[j][m];
-                    }
+                    double scalar1 = 0.;
 
-                    AF_tensor[i][j][k][l] = d_i_j_k_l;
-                }
-            }
-        }
-    }
-    for(int i = 0; i < option.dim; i++){
-        for(int j = 0; j < option.dim; j++){
-            for(int k = 0; k < option.dim; k++){
-                for(int l = 0; l < option.dim; l++){
-                    double d_i_j_k_l = 0.;
-                    for(int m = 0; m < option.dim; m++){
-                        d_i_j_k_l += AF_tensor[m][j][k][l] * current_deformation_gradient[i][m];
-                    }
-                    
-                    consistent_d_tensor[i][j][k][l] = d_i_j_k_l;
-                }
-            }
-        }
-    }
-    for(int i = 0; i < option.dim; i++){
-        for(int j = 0; j < option.dim; j++){
-            double F_stress_ij =0.;
-            for(int k = 0; k < option.dim; k++){
-                F_stress_ij += current_deformation_gradient[i][k] * current_stress_tensor[k][j];
-            }
-            F_stress[i][j] = F_stress_ij;
-        }
-    }
-    for(int i = 0; i < option.dim; i++){
-        for(int j = 0; j < option.dim; j++){
-            for(int k = 0; k < option.dim; k++){
-                for(int l = 0; l < option.dim; l++){
-                    consistent_d_tensor[i][j][k][l] -= F_stress[i][l] * inverse_deformation_grad[j][k];   
+                    for(int ii = 0; ii < option.dim; ii++){
+                        double scalar2 = 0.;
+
+                        for(int jj = 0; jj < option.dim; jj++){
+                            double scalar3 = 0.;
+
+                            for(int kk = 0; kk < option.dim; kk++){
+                                scalar3 += A_tensor[ii][jj][k][kk] * current_deformation_gradient[l][kk];
+                            }
+                            scalar2 += inverse_deformation_grad[j][jj] * scalar3;
+                        }
+                        scalar1 += current_deformation_gradient[i][ii] * scalar2;
+                   }
+
+                   double scalar4 = 0.;
+                   for(int ii = 0; ii < option.dim; ii++){
+                       scalar4 += current_deformation_gradient[i][ii] * current_stress_tensor[ii][l];
+                   }
+                   scalar1 -= inverse_deformation_grad[j][k] * scalar4;
+
+                   consistent_d_tensor[i][j][k][l] = scalar1;
                 }
             }
         }
     }
     
     conver4thOrderTensorToMatrix(c_matrix, consistent_d_tensor);
-
-    #if 1
-    
-    #endif
 }

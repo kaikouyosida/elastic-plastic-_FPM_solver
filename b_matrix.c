@@ -3,6 +3,7 @@
 
 #include"type.h"
 #include"matrix.h"
+#include"b_matrix.h"
 
 extern Global global;
 extern Option option;
@@ -184,7 +185,7 @@ double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
     for (int i = 0; i < N_support + 1; i++)
         for (int j = 0; j < option.dim; j++)
         {
-            const double dn_dx_j_i = G[j][option.dim * i];
+            double dn_dx_j_i = G[j][option.dim * i];
 
             b_t_matrix[3 * i    ][3 * j]     = dn_dx_j_i;
             b_t_matrix[3 * i    ][3 * j + 1] = 0.0;
@@ -211,7 +212,7 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     G = matrix(9, option.dim * global.subdomain.N_point + option.dim);
     shapeF = matrix(option.dim, option.dim * N_support + option.dim);
 
-    calc_G(dim, point_n, global.subdomain.point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+    calc_G(dim, point_n, point_xyz, global.subdomain.support_offset, global.subdomain.support, G);
     for (int i = 0; i < dim; i++)
         h[i] = xyz[i] - point_xyz[dim * point_n + i];
 
@@ -227,8 +228,8 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     for (int i = 0; i < dim; i++)
         shapeF[i][i] += 1.0;
     
-    for(int i = 0; i < 3 * N_support + 3; i++){
-        for(int j = 0; j < 3; j++){
+    for(int i = 0; i < dim * (N_support + 1); i++){
+        for(int j = 0; j < dim; j++){
             shapeF_t[i][j] = shapeF[j][i];
         }
     }

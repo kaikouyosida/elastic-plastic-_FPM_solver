@@ -113,6 +113,7 @@ double calc_subdomain_volume(int point_n){
         volume /= 6.0;
         return volume;
 }
+#if 0
 //内部境界を二分割して和をとることで面積を求める
 double calc_surface_area(int face_n){
     int ref_num = global.subdomain.vertex_offset[face_n];
@@ -150,10 +151,10 @@ double calc_surface_area(int face_n){
 
     return area1 + area2;
 }
+#endif
 //物理空間座標→正規化座標に変換するためのスカラー値を計算
 double calc_area_change(int face_n, int s, int t, double *X){
-    int ref_num = global.subdomain.vertex_offset[face_n];
-    double transform_area = 0.;
+    int ref_num = global.subdomain.vertex_offset[global.subdomain.shared_face[face_n]];
     double scalar = 0.;
     double area_vector[3];
     double e[3][3][3];
@@ -175,20 +176,20 @@ double calc_area_change(int face_n, int s, int t, double *X){
         x3[i] = global.subdomain.node_XYZ[option.dim * node3 + i] + global.subdomain.nodal_displacements[node3][i] + global.subdomain.nodal_displacement_increments[node3][i];
         x4[i] = global.subdomain.node_XYZ[option.dim * node4 + i] + global.subdomain.nodal_displacements[node4][i] + global.subdomain.nodal_displacement_increments[node4][i];
     }
-    for(int i = 0; i < 3 ; i++){
+    for(int i = 0; i < option.dim ; i++){
         dx_ds[i] = -0.25 * (1.0 - X[t]) * x1[i] - 0.25 * (1.0 + X[t]) * x2[i] + 0.25 * (1.0 + X[t]) * x3[i] + 0.25 * (1.0 - X[t]) * x4[i];
         dx_dt[i] = -0.25 * (1.0 - X[s]) * x1[i] + 0.25 * (1.0 - X[s]) * x2[i] + 0.25 * (1.0 + X[s]) * x3[i] - 0.25 * (1.0 + X[s]) * x4[i];
     }
-    for(int i = 0; i < 3; i++){
+    for(int i = 0; i < option.dim; i++){
         double area_vector_i = 0.;
-        for(int j = 0; j < 3; j++){
-            for(int k = 0; k < 3; k++){
+        for(int j = 0; j < option.dim; j++){
+            for(int k = 0; k < option.dim; k++){
                 area_vector_i += dx_ds[j] * dx_dt[k] * e[j][k][i];
             }
         }
         area_vector[i] = area_vector_i;
     }
-    for(int i = 0; i < 3; i++)
+    for(int i = 0; i < option.dim; i++)
         scalar += area_vector[i] * area_vector[i];
     scalar = sqrt(scalar);
     

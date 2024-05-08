@@ -85,6 +85,13 @@ void analize_by_NewtonRapdon(){
             #endif
 
             update_nodal_displacement_increment();
+            //for(int i = 0 ; i < global.subdomain.N_node; i++){
+                //for(int j = 0; j < 3; j++){
+                    //printf("%+15.14e   ", global.subdomain.nodal_displacement_increments[i][j] + global.subdomain.node_XYZ[3*i+j]);
+                //}
+                //printf("\n");
+            //}
+            
 
             printf("error norm in loop %d: %+15.14e\n", iteration_step+1, residual_norm);
             if(iteration_step == 1000){

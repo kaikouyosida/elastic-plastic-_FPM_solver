@@ -30,32 +30,33 @@ void generate_coefficient_matrix(){
 
         for(int i = 0; i < option.dim; i++)
             for(int j = 0; j < option.dim; j++)
-                current_deformation_gradient[i][j] = global.subdomain.deformation_gradients[i][j][point];
+                current_deformation_gradient[i][j] = global.subdomain.current_deformation_gradients[i][j][point];
     
         for(int i = 0; i < 6; i++){
             current_stresses[i] = global.subdomain.current_stresses[point][i];
-            trial_elastic_strains[i] = global.subdomain.trial_elastic_strains[point][i];
             back_stress[i] = global.subdomain.back_stresses[point][i];
+            trial_elastic_strains[i] = global.subdomain.trial_elastic_strains[point][i];
         }
-        
+
         generate_subdomain_coefficient_matrix(point, ke_matrix, current_deformation_gradient, current_stresses, trial_elastic_strains,
         global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress);
         assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point, point);
+
     }
     #endif
-
+    
     #if 1
     //ペナルティ項（安定化項以外）の項を計算
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         for(int i = 0; i < option.dim; i++)
             for(int j = 0; j < option.dim; j++)
-                current_deformation_gradient[i][j] = global.subdomain.deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face]];
-    
+                current_deformation_gradient[i][j] = global.subdomain.current_deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face]];   
         for(int i = 0; i < 6; i++){
             current_stresses[i] = global.subdomain.current_stresses[global.subdomain.pair_point_ib[2 * face]][i];
             trial_elastic_strains[i] = global.subdomain.trial_elastic_strains[global.subdomain.pair_point_ib[2 * face]][i];
             back_stress[i] = global.subdomain.back_stresses[global.subdomain.pair_point_ib[2 * face]][i];
         }
+        
         #if 1
         generate_subdomain_coefficient_matrix_for_PenaltyTerm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
@@ -69,14 +70,13 @@ void generate_coefficient_matrix(){
         
         for(int i = 0; i < option.dim; i++)
             for(int j = 0; j < option.dim; j++)
-                current_deformation_gradient[i][j] = global.subdomain.deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face + 1]];
-    
+                current_deformation_gradient[i][j] = global.subdomain.current_deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face + 1]];
         for(int i = 0; i < 6; i++){
             current_stresses[i] = global.subdomain.current_stresses[global.subdomain.pair_point_ib[2 * face + 1]][i];
             trial_elastic_strains[i] = global.subdomain.trial_elastic_strains[global.subdomain.pair_point_ib[2 * face + 1]][i];
             back_stress[i] = global.subdomain.back_stresses[global.subdomain.pair_point_ib[2 * face + 1]][i];
         }
-
+        
         generate_subdomain_coefficient_matrix_for_PenaltyTerm(global.subdomain.pair_point_ib[2*face],global.subdomain.pair_point_ib[2*face + 1], face, ke_matrix,
                                                     current_deformation_gradient, current_stresses, trial_elastic_strains,
                                                     global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments, back_stress, 1);
@@ -142,8 +142,13 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
     double GTS[60][9];
     double jacobian;
     FILE *fp_debug;
+    char FILE_name[128];
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
-
+    
+    //for(int i = 0; i < 6; i++){
+        //printf("%+15.14e    ", current_stress[i]);
+    //}
+    //printf("\n");
     //ke_matrixをゼロ処理
     for(int i = 0; i < option.dim * (N_support + 1); i++)
         for(int j = 0; j < option.dim * (N_support + 1); j++)
@@ -157,12 +162,31 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
 
     //弾性Dマトリクスの計算
     generateElasticDMatrix(d_matrix);
-    convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
-    conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
-
+    //if(point_n == 100){
+    //printf("%d\n",point_n);
+        //for(int i = 0; i < 6; i++){
+            //for(int j = 0; j < 6;j++){
+                //printf("%+8.7e  ", d_matrix[i][j]);
+            //}
+            //printf("\n");
+        //}
+        //printf("\n");
+    //}
     //有限ひずみのDマトリクスに修正
-    //modify_d_matrix_with_finite_strain(d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
-
+    modify_d_matrix_with_finite_strain(d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
+    #if 0
+    if(point_n == 100){
+    printf("%d\n",point_n);
+        for(int i = 0; i < 6; i++){
+            for(int j = 0; j < 6;j++){
+                printf("%+15.14e  ", d_matrix[i][j]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+    #endif
+    #if 1
     for(int i = 0; i < option.dim * (N_support + 1); i++){
         for(int j = 0; j < 6; j++){
             double BTD_ij = 0.;
@@ -182,14 +206,38 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
             ke_matrix[i][j] = ke_ij * jacobian;
         }
     }
-
+    #endif
 
     #if 1
     //非線形Bマトリクスの計算
     generate_nonlinear_b_matrix(b_t_NL_matrix, point_n);
+    #if 0
+    double a[9];
+    for(int i = 0; i < 9; i++){
+        double a_i = 0;
+        for(int j = 0 ; j < N_support; j++){
+            for(int k = 0; k < 3; k++){
+                a_i += b_t_NL_matrix[3*(j+1)+k][i] * global.subdomain.displacement_increment[global.subdomain.support[global.subdomain.support_offset[point_n] + j]][k];
+            }
+        }
+        for(int j = 0; j < 3; j++)
+            a_i += b_t_NL_matrix[j][i] * global.subdomain.displacement_increment[point_n][j];
+        a[i] = a_i;
+        if(point_n == 100)
+            printf("%+8.7e\n", a[i]);
+    }
+    #endif
 
     //Sマトリクスの計算
     generateSMatrix(s_matrix, current_stress);
+
+    //for(int i = 0; i < 9; i++){
+        //for(int j = 0; j < 9; j++){
+            //printf("%+5.4e  ", s_matrix[i][j]);
+        //}
+        //printf("\n");
+    //}
+    //printf("\n");
     
     for(int i = 0; i < option.dim * (N_support + 1); i++){
         for(int j = 0; j < 9; j++){
@@ -212,7 +260,22 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
         }
     }
     #endif
-
+    #if 0
+    if(point_n == 100){
+        printf("%d\n", global.count);
+        snprintf(FILE_name, 128, "Coefficient_matrix_for_debug/nonlinear_domain_subdomain/subdomain_coefficient_for_debug%d_%d.dat",point_n ,global.count);
+        fp_debug = fopen(FILE_name, "w");
+        for(int i = 0; i < 3*(N_support+1); i++){
+            for(int j = 0 ; j < 3*(N_support+1); j++){
+                fprintf(fp_debug, "%8.7e   ", ke_matrix[i][j]);
+            }
+            fprintf(fp_debug, "\n");
+        }
+        fprintf(fp_debug, "\n");    
+        fclose(fp_debug);
+        global.count++;
+    }
+    #endif
 }
 
 
@@ -314,8 +377,9 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
 
     //弾性Dマトリクスの計算
     generateElasticDMatrix(d_matrix);
-    convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
-    conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
+    //convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
+    //conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
+
     #if 0
     if(face_n == 100){
         printf("%d\n",global.count);
@@ -331,10 +395,20 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
         global.count++;
     }
     #endif
-
+    
     //有限ひずみのDマトリクスに修正
-    //modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
-
+    modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
+    #if 0
+    if(face_n == 1){
+        for(int i = 0; i < 9; i++){
+            for(int j = 0 ; j < 9; j++){
+                printf("%+8.7e  ", c_matrix[i][j]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
+    #endif
     //ガウス点の座標と重み、ヤコビアンの計算
     Gauss_points_and_weighting_factors(N_qu, X, w);
     //jacobian = calc_surface_area(face_n) / 4.0;
@@ -360,6 +434,8 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
     for(int s = 0;  s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
             jacobian = calc_area_change(face_n, s, t, X);
+        //if(face_n == 100)
+            //printf("%+15.14e\n", jacobian);
             for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -559,7 +635,8 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(int point_n1, i
     //法線ベクトルの計算
     calc_Ne_diagonal(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], global.subdomain.shared_face[face_n], global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, latest_point_XYZ, Ne_d);
     factor = calc_area_change_factor(global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], Ne_d);
-    
+    //if(face_n == 100)
+        //printf("%+15.14e\n", factor);
     for(int s = 0; s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
             jacobian = calc_area_change(face_n, s, t, X);
@@ -574,14 +651,13 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(int point_n1, i
 
             for(int i = 0;  i < option.dim * (N1_support + 1); i++){
                 for(int j = 0; j < option.dim * (N2_support + 1); j++){
-                    double N1TN_ij = 0.;
+                    double N1TN2_ij = 0.;
                     for(int k = 0; k < option.dim; k++){
-                        N1TN_ij += N1T[i][k] * N2T[j][k];
+                        N1TN2_ij += N1T[i][k] * N2T[j][k];
                     }
-                    ke_matrix[i][j] += eta / he * N1TN_ij * factor * inverse_volume_change * sign * jacobian * w[s] * w[t];
+                    ke_matrix[i][j] += eta / he * N1TN2_ij * factor * inverse_volume_change * sign * jacobian * w[s] * w[t];
                 }
             }
-
         }
     }
     free(node_XYZ);
@@ -646,7 +722,7 @@ double calc_area_change_factor(int subdomain_n1, int subdomain_n2, double (*Ne_d
         trial_elastic_strains2[i] = global.subdomain.trial_elastic_strains[subdomain_n2][i];
     }
     
-    //試行弾性左コーシーグリーンテンソルの計算
+    //subdomain1の試行弾性左コーシーグリーンテンソルの計算
     trial_elastic_strain_tensor1[0][0] = 2.0 * trial_elastic_strains1[0];
     trial_elastic_strain_tensor1[0][1] = 2.0 * 0.5 * trial_elastic_strains1[3];
     trial_elastic_strain_tensor1[0][2] = 2.0 * 0.5 * trial_elastic_strains1[5];
@@ -660,7 +736,7 @@ double calc_area_change_factor(int subdomain_n1, int subdomain_n2, double (*Ne_d
     calculateTensorExponent(trial_elastic_left_cauchy_green_deformations1,
                             trial_elastic_strain_tensor1);
 
-    //試行弾性左コーシーグリーンテンソルの計算
+    //subdomain2の試行弾性左コーシーグリーンテンソルの計算
     trial_elastic_strain_tensor2[0][0] = 2.0 * trial_elastic_strains2[0];
     trial_elastic_strain_tensor2[0][1] = 2.0 * 0.5 * trial_elastic_strains2[3];
     trial_elastic_strain_tensor2[0][2] = 2.0 * 0.5 * trial_elastic_strains2[5];
@@ -808,7 +884,7 @@ void generate_coefficient_linear(){
     fprintf(fp_debug,"\n");
     fclose(fp_debug);
     #endif
-    #if 1
+    #if 0
     if((debug_internal = (double *)calloc(3*global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error: Memory is not enough\n");
         exit(-1);
