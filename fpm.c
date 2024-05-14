@@ -33,7 +33,32 @@ void analize_by_NewtonRapdon(){
             residual_norm = calc_global_force_residual_norm(iteration_step);
             if(residual_norm <= option.NR_tol) break;
             generate_coefficient_matrix();
-            //printf("status\n");
+
+            #if 0
+            if(iteration_step == 0){
+                fp_debug = fopen("coefficient_for_debug.dat", "w");
+                if(fp_debug == NULL)
+                    printf("FILE is not enough\n");
+                for(int i = 0; i < 3*global.subdomain.N_point; i++){
+                    for(int j = 0; j < 3*global.subdomain.N_point; j++){
+                        fprintf(fp_debug, "%+8.7e   ", global.subdomain.Global_K[3*global.subdomain.N_point*i+j]);
+                    }
+                    fprintf(fp_debug, "\n");
+                }
+            }
+            if(iteration_step != 0){
+                fp_debug = fopen("coefficient_for_debug.dat", "r");
+                if(fp_debug == NULL)
+                    printf("File is not open\n");
+                for(int i = 0; i < 3*global.subdomain.N_point; i++){
+                    for(int j = 0; j < 3*global.subdomain.N_point; j++){
+                        fscanf(fp_debug, "%lf   ", &global.subdomain.Global_K[3*global.subdomain.N_point*i+j]);
+                    }
+                    fgetc(fp_debug);
+                }
+                fclose(fp_debug);
+            }
+            #endif
             ImposeDirichletTangentialMatrix();
 
             #if 0
@@ -93,7 +118,7 @@ void analize_by_NewtonRapdon(){
             //}
             
 
-            printf("error norm in loop %d: %+15.14e\n", iteration_step+1, residual_norm);
+            printf("%5d   %+15.14e\n", iteration_step+1, residual_norm);
             if(iteration_step == 1000){
                 printf("Iteration is not converged\n");
                 exit(-1);
@@ -116,9 +141,7 @@ void Linear_analization(){
     init_field();
     update_external_force(0);
     global.buf = calc_global_force_residual_norm(1);
-    printf("status\n");
     generate_coefficient_linear();
-    printf("status\n");
     ImposeDirichletTangentialMatrix();
     
     //求解用の変数ベクトルを用意
@@ -138,8 +161,8 @@ void Linear_analization(){
         }
         fclose(fp_debug);
         exit(-1);
-    #endif 
-
+    #endif
+    printf("status1\n");
     Output_Linear_strain_data(du);
         
 

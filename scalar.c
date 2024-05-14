@@ -53,7 +53,7 @@ double calculate3x3MatrixTrace(double matrix[3][3])
     return matrix[0][0] + matrix[1][1] + matrix[2][2];
 }
 /*
-* Calculate subdomain volume
+* Calculate subdomain volume(only the case for hexahedral...)
 */
 double calc_subdomain_volume(int point_n){
     double volume = 0.;
@@ -154,7 +154,7 @@ double calc_surface_area(int face_n){
 #endif
 //物理空間座標→正規化座標に変換するためのスカラー値を計算
 double calc_area_change(int face_n, int s, int t, double *X){
-    int ref_num = global.subdomain.vertex_offset[global.subdomain.shared_face[face_n]];
+    int ref_num = global.subdomain.vertex_offset[face_n];
     double scalar = 0.;
     double area_vector[3];
     double e[3][3][3];

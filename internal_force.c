@@ -645,7 +645,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
         //内部境界上での積分
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
-                jacobian = calc_area_change(face, s, t, X);
+                jacobian = calc_area_change(global.subdomain.shared_face[face], s, t, X);
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -788,7 +788,7 @@ void calc_internal_force_penalty_stabilization(int N_qu){
 
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
-                jacobian = calc_area_change(face, s,t,X);
+                jacobian = calc_area_change(global.subdomain.shared_face[face], s,t,X);
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]

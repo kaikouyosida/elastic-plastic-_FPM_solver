@@ -35,7 +35,7 @@ void Output_Linear_strain_data(double *du){
         printf("Error:Stress's memory is not enough\n");
         exit(-1);
     }
-
+    printf("stati");
     fp_strain = fopen("Data_Files_Output/Output_strain.dat", "w");
     fprintf(fp_strain, "subdomain   /   Lagrange strain   xx            yy          zz          xy          yz          zx\n");
     
@@ -76,7 +76,6 @@ void Output_Linear_strain_data(double *du){
         fprintf(fp_u, "%+15.14e %+15.14e %+15.14e\n", du[option.dim * point], du[option.dim * point + 1], du[option.dim * point + 2]);
     }
     fclose(fp_u);
-
     fp_stress = fopen("Data_Files_Output/Output_stress.dat", "w");
     fprintf(fp_stress, "subdomain   /   Cauchy stress   xx            yy          zz          xy          yz          zx\n");
     for(int point = 0; point < global.subdomain.N_point; point++){
@@ -198,6 +197,24 @@ void Output_Linear_strain_data(double *du){
         printf("\n");
     }
     #endif
+    printf("status\n");
+    #if 0
+    double internal_force[12000000];
+    for(int i = 0; i < option.dim*global.subdomain.N_point; i++){
+        double internal_i = 0; 
+        for(int j = 0; j < option.dim*global.subdomain.N_point; j++){
+            internal_i += global.subdomain.Global_K[3*global.subdomain.N_point * i + j] * du[j];
+        }
+        internal_force[i] = internal_i;
+    }
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        printf("%5d  ", i);
+        for(int j = 0; j < option.dim; j++){
+            printf("%+15.14e ", internal_force[3*i+j]-global.subdomain.global_residual_force[3*i+j]);
+        }
+        printf("\n");
+    }
+    #endif
 
     strain_energy = calc_strain_energy_norm();
     double exact_strain_energy = 2.5*1.0e-6;        //←歪みエネルギの厳密解をここに入力
@@ -283,8 +300,12 @@ double calc_reaction_force_norm(double *du){
         f_rec[i] = global.subdomain.global_residual_force[i] - f_int;
     }
 
-    for(int i = 0; i < option.dim * global.subdomain.N_point; i++)
-        printf("%+15.14e\n", global.subdomain.global_residual_force[i]);
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j= 0; j < option.dim; j++){
+            printf("%+15.14e    ", f_rec[option.dim*i+j]);
+        }
+        printf("\n");
+    }
 
     for(int i = 0; i < option.dim * global.subdomain.N_point; i++){
         residual_norm += f_rec[i] * f_rec[i];

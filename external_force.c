@@ -76,7 +76,7 @@ void update_external_force(int time){
         
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
-                jacobian = calc_area_change(face, s, t, X);
+                jacobian = calc_area_change(global.bc.traction_face[face], s, t, X);
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -103,23 +103,11 @@ void update_external_force(int time){
                             += subdomain_external_force[option.dim * (i + 1) + j];
                     }
                 }
-            
                 for(int i = 0; i < option.dim; i++)
                     global.subdomain.global_external_force[global.bc.traction_point[face]][i] 
                         += subdomain_external_force[i];
     }
-    #if 0
-            global.count++;
-            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", global.count);
-            fp_debug = fopen(FILE_name,"w");
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+4.3e  ", global.subdomain.global_external_force[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fprintf(fp_debug, "\n");
-    #endif
+
     #if 0
             global.count++;
             snprintf(FILE_name, 128,"debug_for_external/global_external_vector%d.dat", global.count);
