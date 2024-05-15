@@ -2,11 +2,12 @@
 #include <stdlib.h>
 #include "type.h"
 
+
 extern Option option;
 extern Global global;
 
 double fixed_deformation(double time, double time_end, double x1, double x2, double x3, int type){
-  double fixed_u = 0.;
+  double fixed_u;
 
   if(type == 0){
     // 変位を固定 //
@@ -15,7 +16,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   
   else if(type == 1){
     // 変位を固定 //
-		fixed_u = 0.01 * time / time_end;
+		fixed_u = 0.0001 * time / time_end;
 	}
   else if(type == 2){
     // x軸方向のTimoshenko梁の変位固定 //
@@ -51,13 +52,13 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
 	}
   return fixed_u;
 }
-void ImposeDirichretResidual(int NR_step)
+void ImposeDirichretResidual(int iteration_step)
 {
     double fixed_u_inc = 0.; // 規定された変位の増分量
     int type_num[3];         // ディリクレ条件の番号
     double fixed_xyz[3];     // 変位を固定するポイントの位置
 
-    if (NR_step == 1)
+    if (iteration_step == 0)
     {
         for (int i = 0; i < global.subdomain.N_point; i++)
         {
@@ -114,7 +115,7 @@ void ImposeDirichretResidual(int NR_step)
 }
 // ディリクレ条件に応じて接線剛性マトリクスと残差を書き換える (full-matrix形式) //
 void ImposeDirichletTangentialMatrix(){
-	int DoF_free = 3*global.subdomain.N_point;  // 拘束を考慮しない自由度
+	int DoF_free = option.dim * global.subdomain.N_point;  // 拘束を考慮しない自由度
 
 	for(int i=0;i<global.subdomain.N_point;i++){
     // x方向の変位が固定されているとき //

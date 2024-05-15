@@ -297,11 +297,13 @@ void update_field_and_internal_forces(){
         
         if (trial_relative_equivalent_stress <= (*yield_stress))
             {   
+                
                 *equivalent_plastic_strain_increment = 0.0;
                 *current_yield_stress = *yield_stress;
                 for (int i = 0; i < 6; i++)
                     current_back_stresses[i] = back_stresses[i];
             }else{
+                printf("status\n");
                 double hardening_stress_increment;
                 double current_relative_hydrostatic_stress;
 
@@ -855,7 +857,7 @@ double calc_global_force_residual_norm(int iteration_step){
                  =  global.subdomain.global_external_force[i][j] - global.subdomain.global_internal_force[i][j];
     
     
-            ImposeDirichretResidual(iteration_step + 1);
+            ImposeDirichretResidual(iteration_step);
     
     #if 0
             snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d.dat", iteration_step);
@@ -881,7 +883,7 @@ double calc_global_force_residual_norm(int iteration_step){
     if(iteration_step == 0){
         global.temp = global_r_norm;
     }
-    
+    //printf("%lf\n", global.temp);
     if(global_f_norm == 0){
         return global_r_norm / global.temp;
     }else{

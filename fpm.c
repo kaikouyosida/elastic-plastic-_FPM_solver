@@ -10,6 +10,7 @@
 #include"ImposeDirichretCondition.h"
 #include"LU_decomposition.h"
 #include"Output.h"
+#include"Output_data.h"
 
 extern Global global;
 extern Option option;
@@ -34,8 +35,8 @@ void analize_by_NewtonRapdon(){
             if(residual_norm <= option.NR_tol) break;
             generate_coefficient_matrix();
 
-            #if 0
-            if(iteration_step == 0){
+            #if 1
+            if(iteration_step == 1){
                 fp_debug = fopen("coefficient_for_debug.dat", "w");
                 if(fp_debug == NULL)
                     printf("FILE is not enough\n");
@@ -90,8 +91,8 @@ void analize_by_NewtonRapdon(){
             fprintf(fp_debug, "point        /displacement           x           y           z\n");
             for(int i = 0; i < global.subdomain.N_point; i++){
                 fprintf(fp_debug, "%5d  ", i);
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", du[i*3+j]);
+                for(int j = 0; j < option.dim; j++){
+                    fprintf(fp_debug, "%+15.14e  ", du[option.dim * i + j]);
                 }
                 fprintf(fp_debug, "\n");
             }
@@ -116,6 +117,12 @@ void analize_by_NewtonRapdon(){
                 //}
                 //printf("\n");
             //}
+            //for(int i = 0 ; i < global.subdomain.N_point; i++){
+                //for(int j = 0; j < 3; j++){
+                    //printf("%+15.14e   ", global.subdomain.displacement_increment[i][j]);
+                //}
+                //printf("\n");
+            //}
             
 
             printf("%5d   %+15.14e\n", iteration_step+1, residual_norm);
@@ -125,6 +132,8 @@ void analize_by_NewtonRapdon(){
             }
             
         }
+        Output_data(time_step);
+        
     }
     
     break_field();          //変数のメモリを開放
@@ -140,7 +149,7 @@ void Linear_analization(){
 
     init_field();
     update_external_force(0);
-    global.buf = calc_global_force_residual_norm(1);
+    global.buf = calc_global_force_residual_norm(0);
     generate_coefficient_linear();
     ImposeDirichletTangentialMatrix();
     
