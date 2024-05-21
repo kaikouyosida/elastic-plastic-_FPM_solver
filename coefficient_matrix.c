@@ -177,7 +177,7 @@ void generate_subdomain_coefficient_matrix(int point_n, double (*ke_matrix)[60],
         //printf("\n");
     //}
     //有限ひずみのDマトリクスに修正
-    modify_d_matrix_with_finite_strain(d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
+    //modify_d_matrix_with_finite_strain(d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
     #if 0
     if(point_n == 100){
     printf("%d\n",point_n);
@@ -406,8 +406,8 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
 
     //弾性Dマトリクスの計算
     generateElasticDMatrix(d_matrix);
-    //convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
-    //conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
+    convertSymmetric4thOrderMatrixToTensor(concictent_d_matrix, d_matrix);
+    conver4thOrderTensorToMatrix(c_matrix, concictent_d_matrix);
 
     #if 0
     if(face_n == 100){
@@ -426,7 +426,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(int point_n1, int poi
     #endif
     
     //有限ひずみのDマトリクスに修正
-    modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
+    //modify_d_matrix_with_finite_strain_for_PenaltyTerm(c_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
     #if 0
     if(face_n == 1){
         for(int i = 0; i < 9; i++){

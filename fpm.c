@@ -23,19 +23,20 @@ void analize_by_NewtonRapdon(){
 
     global.count = 0.;
     init_field();           //変数を初期化
-
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
-
             update_field_and_internal_forces();
             update_external_force(time_step);
             residual_norm = calc_global_force_residual_norm(iteration_step);
-            if(residual_norm <= option.NR_tol) break;
+            if(residual_norm <= option.NR_tol && iteration_step != 0){
+                printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
+                break;
+            }
             generate_coefficient_matrix();
 
-            #if 1
+            #if 0
             if(iteration_step == 1){
                 fp_debug = fopen("coefficient_for_debug.dat", "w");
                 if(fp_debug == NULL)
@@ -47,7 +48,7 @@ void analize_by_NewtonRapdon(){
                     fprintf(fp_debug, "\n");
                 }
             }
-            if(iteration_step != 0){
+            if(iteration_step > 1){
                 fp_debug = fopen("coefficient_for_debug.dat", "r");
                 if(fp_debug == NULL)
                     printf("File is not open\n");
@@ -78,7 +79,7 @@ void analize_by_NewtonRapdon(){
             if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
             }
-
+            
             solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
 
             for(int i = 0; i < global.subdomain.N_point; i++)
@@ -133,7 +134,8 @@ void analize_by_NewtonRapdon(){
             
         }
         Output_data(time_step);
-        
+        increment_field();
+        paraview_node_data(time_step);
     }
     
     break_field();          //変数のメモリを開放

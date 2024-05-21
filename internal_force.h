@@ -20,3 +20,6 @@ double calc_global_force_residual_norm(int iteration_step);
 
 //節点変位の増分を更新
 void update_nodal_displacement_increment();
+
+//変位、応力等などの更新
+void increment_field();

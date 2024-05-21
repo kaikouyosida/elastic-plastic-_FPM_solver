@@ -3,6 +3,8 @@
 #include"type.h"
 #include"Output_data.h"
 
+#define VERTEX 8
+
 extern Global global;
 extern Option option;
 
@@ -27,13 +29,13 @@ void Output_data(int time_step){
     }
     fclose(fp_deformation);
 
-    snprintf(FILE_name, 128, "Data_Files_Output/Output_strain_time%d.dat", time_step);
+    snprintf(FILE_name, 128, "Data_Files_Output/Output_Cauchy_stress_time%d.dat", time_step);
     fp_stress = fopen(FILE_name,"w");
     if(fp_stress == NULL){
         printf("file not open\n");
         exit(-1);
     }
-    fprintf(fp_stress,"point number / strain xx yy zz zy yz zx\n");
+    fprintf(fp_stress,"point number / stress xx yy zz zy yz zx\n");
     for(int i = 0; i < global.subdomain.N_point; i++){
         fprintf(fp_stress, "%7d    ", i);
         for(int j = 0; j < 6; j++)
@@ -56,4 +58,137 @@ void Output_data(int time_step){
         fprintf(fp_strain, "\n");
     }
     fclose(fp_strain);
+}
+
+void paraview_node_data(int time_step){
+    FILE *fp_paraview;
+    double stresses[9];
+    char FILE_name[128];
+    
+    fp_paraview = fopen("paraview/Outline_for_paraview.vtk",  "w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d float\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (VERTEX + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", VERTEX);
+        for(int j = 0; j < VERTEX; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[VERTEX * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    fclose(fp_paraview);
+
+    snprintf(FILE_name, 128,"paraview/paraview_time_deformation%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name,"w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d float\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (VERTEX + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", VERTEX);
+        for(int j = 0; j < VERTEX; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[VERTEX * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");
+    fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "VECTORS node_deformation float\n");
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ",  global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fclose(fp_paraview);
+
+
+    snprintf(FILE_name, 128,"paraview/paraview_time_stress%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name,"w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d float\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (VERTEX + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", VERTEX);
+        for(int j = 0; j < VERTEX; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[VERTEX * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");
+    fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "TENSORS node_stress float\n");
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        for(int i = 0; i < 9; i++)
+            stresses[i] = 0.;
+        int N_ar_node = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+        for(int i = 0; i < N_ar_node; i++){
+            int num_ar_node = global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i];
+            stresses[0] += global.subdomain.stresses[num_ar_node][0];
+            stresses[1] += global.subdomain.stresses[num_ar_node][3];
+            stresses[2] += global.subdomain.stresses[num_ar_node][5];
+            stresses[3] += global.subdomain.stresses[num_ar_node][3];
+            stresses[4] += global.subdomain.stresses[num_ar_node][1];
+            stresses[5] += global.subdomain.stresses[num_ar_node][4];
+            stresses[6] += global.subdomain.stresses[num_ar_node][5];
+            stresses[7] += global.subdomain.stresses[num_ar_node][4];
+            stresses[8] += global.subdomain.stresses[num_ar_node][2];
+        }
+        for(int i = 0; i < 9; i++)
+            stresses[i] /= (double)N_ar_node;
+        fprintf(fp_paraview,"%+e %+e %+e\n", stresses[0], stresses[1], stresses[2]);
+        fprintf(fp_paraview,"%+e %+e %+e\n", stresses[3], stresses[4], stresses[5]);
+        fprintf(fp_paraview,"%+e %+e %+e\n", stresses[6], stresses[7], stresses[8]);
+    }
+    fclose(fp_paraview);
 }
