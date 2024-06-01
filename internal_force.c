@@ -394,9 +394,9 @@ void update_field_and_internal_forces(){
                 }
             }
             fclose(fp_debug);
-
-            //printf("%lf %lf %lf %lf %lf %lf\n", current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
             #endif
+            //printf("%lf %lf %lf %lf %lf %lf\n", current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
+            
             double volume = calc_subdomain_volume(point);
             //printf("%+15.14e\n",  volume);
             #if 1
@@ -424,6 +424,7 @@ void update_field_and_internal_forces(){
                 all_stress[point][i] = current_stresses[i];
                 global.subdomain.current_stresses[point][i] = current_stresses[i];
                 global.subdomain.trial_elastic_strains[point][i] = trial_elastic_strains[i];
+                global.subdomain.current_elastic_strains[point][i] = current_elastic_strains[i];
             }
             for(int i = 0; i < 3; i++){
                 for(int j = 0; j < 3; j++){
@@ -882,11 +883,15 @@ double calc_global_force_residual_norm(int iteration_step){
  
     if(iteration_step == 0){
         global.temp = global_r_norm;
+        printf("%+15.14e\n", global.temp);
     }
-    printf("%lf\n", global.temp);
+
     if(global_f_norm == 0){
+        //printf("norm: %+15.14e\n", global.temp-0.25);
         return global_r_norm / global.temp;
+        
     }else{
+        printf("status\n");
         return global_r_norm / global_f_norm;
     }
 }

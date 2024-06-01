@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "type.h"
+#include "ImposeDirichretCondition.h"
 
 
 extern Option option;
@@ -16,7 +18,8 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   
   else if(type == 1){
     // 変位を固定 //
-		fixed_u = 0.5 * time / time_end;
+		fixed_u = 0.005 * time / time_end;
+    //printf("%+8.7e %+8.7e\n", time, time_end);
 	}
   else if(type == 2){
     // x軸方向のTimoshenko梁の変位固定 //
@@ -54,6 +57,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
 }
 void ImposeDirichretResidual(int iteration_step)
 {
+    int count = 0;
     double fixed_u_inc = 0.; // 規定された変位の増分量
     int type_num[3];         // ディリクレ条件の番号
     double fixed_xyz[3];     // 変位を固定するポイントの位置
@@ -77,6 +81,17 @@ void ImposeDirichretResidual(int iteration_step)
                 fixed_u_inc = fixed_deformation(option.time, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[0]);
                 fixed_u_inc -= fixed_deformation(option.time_old, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[0]);
                 global.subdomain.global_residual_force[3 * i] = fixed_u_inc;
+                #if 1
+                for(int j = 0; j < global.subdomain.N_point; j++){
+                  for(int k = 0; k < option.dim; k++){
+                    for(int l = 0; l < global.bc.N_D_DoF; l++)
+                      if(option.dim * j + k == global.bc.fixed_dof[l]) count++;
+                    if(count == 0)
+                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[option.dim * (option.dim * j + k) + option.dim * i] * fixed_u_inc;
+                    count = 0;
+                  }
+                }
+                #endif
             }
             // y方向の変位が固定されているとき //
             if (global.bc.fixed_dir[i] % 3 == 0)
@@ -86,6 +101,17 @@ void ImposeDirichretResidual(int iteration_step)
                 fixed_u_inc = fixed_deformation(option.time, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[1]);
                 fixed_u_inc -= fixed_deformation(option.time_old, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[1]);
                 global.subdomain.global_residual_force[3 * i + 1] = fixed_u_inc;
+                #if 1
+                for(int j = 0; j < global.subdomain.N_point; j++){
+                  for(int k = 0; k < option.dim; k++){
+                    for(int l = 0; l < global.bc.N_D_DoF; l++)
+                      if(option.dim * j + k == global.bc.fixed_dof[l]) count++;
+                    if(count == 0)
+                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[option.dim * (option.dim * j + k) + option.dim * i + 1] * fixed_u_inc;
+                    count = 0;
+                  }
+                }
+                #endif
             }
             // z方向の変位が固定されているとき //
             if (global.bc.fixed_dir[i] % 5 == 0)
@@ -94,6 +120,17 @@ void ImposeDirichretResidual(int iteration_step)
                 fixed_u_inc = fixed_deformation(option.time, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[2]);
                 fixed_u_inc -= fixed_deformation(option.time_old, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[2]);
                 global.subdomain.global_residual_force[3 * i + 2] = fixed_u_inc;
+                #if 1
+                for(int j = 0; j < global.subdomain.N_point; j++){
+                  for(int k = 0; k < option.dim; k++){
+                    for(int l = 0; l < global.bc.N_D_DoF; l++)
+                      if(option.dim * j + k == global.bc.fixed_dof[l]) count++;
+                    if(count == 0)
+                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[option.dim * (option.dim * j + k) + option.dim * i + 2] * fixed_u_inc;
+                    count = 0;
+                  }
+                }
+                #endif
             }
         }
     }
@@ -121,19 +158,28 @@ void ImposeDirichletTangentialMatrix(){
     // x方向の変位が固定されているとき //
     if(global.bc.fixed_dir[i] % 2 == 0){
       // 第dim*i行の第dim*i列目を1,それ以外を0とする //
-      for(int j=0;j<DoF_free;j++) global.subdomain.Global_K[DoF_free*3*i + j] = 0.;
+      for(int j=0;j<DoF_free;j++){
+          global.subdomain.Global_K[DoF_free*3*i + j] = 0.;
+          global.subdomain.Global_K[DoF_free*j + 3*i] = 0.;
+      }
       global.subdomain.Global_K[DoF_free*3*i + 3*i] = 1.0;
     }
     // y方向の変位が固定されているとき //
     if(global.bc.fixed_dir[i] % 3 == 0){
       // 第dim*i+1行の第dim*i+1列目を1,それ以外を0とする //
-      for(int j=0;j<DoF_free;j++) global.subdomain.Global_K[DoF_free*(3*i+1) + j] = 0.;
+      for(int j=0;j<DoF_free;j++){
+        global.subdomain.Global_K[DoF_free * (3 * i + 1) + j] = 0.;
+        global.subdomain.Global_K[DoF_free * j + (3 * i + 1)] = 0.;
+      }
       global.subdomain.Global_K[DoF_free*(3*i+1) + 3*i+1] = 1.0;
     }
     // z方向の変位が固定されているとき //
     if(global.bc.fixed_dir[i] % 5 == 0){
       // 第dim*i+2行の第dim*i+2列目を1,それ以外を0とする //
-      for(int j=0;j<DoF_free;j++) global.subdomain.Global_K[DoF_free*(3*i+2) + j] = 0.;
+       for(int j=0;j<DoF_free;j++){
+        global.subdomain.Global_K[DoF_free * (3 * i + 2) + j] = 0.;
+        global.subdomain.Global_K[DoF_free * j + (3 * i + 2)] = 0.;
+      }
       global.subdomain.Global_K[DoF_free*(3*i+2) + 3*i+2] = 1.0;
     }
 	}

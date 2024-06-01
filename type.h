@@ -100,6 +100,7 @@ typedef struct
 {
     int *fixed_dir;                     //ディリクレ境界条件をかける方向
     int *Dirichlet_type;                //ディリクレ境界条件のタイプ
+    int *fixed_dof;                     //ディリクレ境界条件をかける自由度
     int N_D_DoF;                        //ディリクレ境界条件の自由度数
     int buf_dir;                        //バッファ
     int buf_type;                        //バッファ

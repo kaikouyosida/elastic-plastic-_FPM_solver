@@ -15,7 +15,7 @@
 extern Global global;
 extern Option option;
 
-void analize_by_NewtonRapdon(){
+void analize_by_NewtonRaphson(){
     FILE *fp_debug;
     char FILE_name[128];
     double residual_norm;
@@ -29,12 +29,12 @@ void analize_by_NewtonRapdon(){
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
             update_field_and_internal_forces();
             update_external_force(time_step);
+            generate_coefficient_matrix();
             residual_norm = calc_global_force_residual_norm(iteration_step);
-            if(residual_norm <= option.NR_tol && iteration_step != 0){
+            if(residual_norm <= option.NR_tol){// && iteration_step != 0){
                 printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
                 break;
             }
-            generate_coefficient_matrix();
 
             #if 0
             if(iteration_step == 1){
@@ -62,10 +62,28 @@ void analize_by_NewtonRapdon(){
             }
             #endif
             ImposeDirichletTangentialMatrix();
-
             #if 0
-            snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
+            snprintf(FILE_name, 128,"Coefficient_matrix_for_debug/debag_coefficient%d.dat", iteration_step);
+            fp_debug = fopen(FILE_name, "w");
+            if(fp_debug == NULL){
+                printf("FILE is not enough\n");
+                exit(-1);
+            }
+            for(int i = 0; i < 3*global.subdomain.N_point; i++){
+                for(int j = 0; j < 3*global.subdomain.N_point; j++){
+                    fprintf(fp_debug, "%+8.7e   ", global.subdomain.Global_K[3*global.subdomain.N_point*i+j]);
+                }
+                fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+            #endif
+            #if 0
+            snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d_%d.dat", time_step, iteration_step);
             fp_debug = fopen(FILE_name,"w");
+            if(fp_debug == NULL){
+                printf("Error: Memory is not open\n");
+                exit(-1);
+            }
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < 3; j++){
                     fprintf(fp_debug, "%+4.3e  ", global.subdomain.global_residual_force[i*3+j]);
@@ -78,8 +96,9 @@ void analize_by_NewtonRapdon(){
             //求解用の変数ベクトルを用意
             if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
+                exit(-1);
             }
-            
+            //printf("Now solving!!\n");
             solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
 
             for(int i = 0; i < global.subdomain.N_point; i++)
@@ -120,7 +139,7 @@ void analize_by_NewtonRapdon(){
             //}
             //for(int i = 0 ; i < global.subdomain.N_point; i++){
                 //for(int j = 0; j < 3; j++){
-                    //printf("%+15.14e   ", global.subdomain.displacement_increment[i][j]);
+                    //printf("%+15.14e   ", global.subdomain.displacement_increment[i][j]+global.subdomain.displacement[i][j]);
                 //}
                 //printf("\n");
             //}
@@ -133,9 +152,11 @@ void analize_by_NewtonRapdon(){
             }
             
         }
-        Output_data(time_step);
+        if((time_step + 1) % option.time_output == 0)
+            Output_data(time_step);
         increment_field();
-        paraview_node_data(time_step);
+        if((time_step + 1) % option.time_output == 0)
+            paraview_node_data(time_step);
     }
     
     break_field();          //変数のメモリを開放

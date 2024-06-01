@@ -379,11 +379,16 @@ void Init_model()
         exit(-1);
     }
     fscanf(fp_Dirichlet, "%*s %d\n", &global.bc.N_D_DoF);
+    if((global.bc.fixed_dof = (int *)calloc(global.bc.N_D_DoF, sizeof(int))) == NULL){
+        printf("Error: Dhirichet dof's memory is not enough\n");
+        exit(-1);
+    }
     fscanf(fp_Dirichlet, "%*[^\n]\n");
 
     for (int i = 0; i < global.bc.N_D_DoF; i++)
     {
         fscanf(fp_Dirichlet, "%d %d %d %*d\n", &global.buf, &global.bc.buf_dir, &global.bc.buf_type);
+        global.bc.fixed_dof[i] = option.dim * global.buf + global.bc.buf_dir;
         if (global.bc.buf_dir == 0)
         {
             global.bc.fixed_dir[global.buf] *= 2;
@@ -401,6 +406,10 @@ void Init_model()
         }
     }
     fclose(fp_Dirichlet);
+    //for(int i = 0; i < global.bc.N_D_DoF; i++)
+        //printf("%5d %5d\n", i, global.bc.fixed_dof[i]);
+    //printf("ok!\n");
+    //exit(-1);
 
     // トラクション条件を読み込む //
     FILE *fp_traction;
@@ -490,6 +499,7 @@ void break_model_memory(){
     free(global.bc.traction_face);
     free(global.bc.traction_type);
     free(global.bc.traction_point);
+    free(global.bc.fixed_dof);
     free(global.bc.Dirichlet_type);
     free(global.bc.fixed_dir);
     free(global.subdomain.support);

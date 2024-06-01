@@ -54,7 +54,7 @@ void Output_data(int time_step){
     for(int i = 0; i < global.subdomain.N_point; i++){
         fprintf(fp_strain, "%7d    ", i);
         for(int j = 0; j < 6; j++)
-            fprintf(fp_strain, "%+15.14e    ", global.subdomain.trial_elastic_strains[i][j]);
+            fprintf(fp_strain, "%+15.14e    ", global.subdomain.current_elastic_strains[i][j]);
         fprintf(fp_strain, "\n");
     }
     fclose(fp_strain);

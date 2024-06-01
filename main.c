@@ -19,7 +19,7 @@ int main(){
 
     switch(solver_type){
         case NON_LINEAR_SOLVER:
-            analize_by_NewtonRapdon();
+            analize_by_NewtonRaphson();
         break;
         case LINEAR_SOLVER:
             Linear_analization();
