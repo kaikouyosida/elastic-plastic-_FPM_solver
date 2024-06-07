@@ -14,8 +14,11 @@ OBJS = $(SRCS:.c=.o)
 run:
 	make -C Data_Files_Input
 	make all
+	.\solver.exe
 	
 all: $(TARGET)
+	.\solver.exe
+
 
 $(TARGET): $(OBJS)
 	$(CC) -o $@ $^ $(CFLAGS)

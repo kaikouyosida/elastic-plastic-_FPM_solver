@@ -197,7 +197,6 @@ void Output_Linear_strain_data(double *du){
         printf("\n");
     }
     #endif
-    printf("status\n");
     #if 0
     double internal_force[12000000];
     for(int i = 0; i < option.dim*global.subdomain.N_point; i++){

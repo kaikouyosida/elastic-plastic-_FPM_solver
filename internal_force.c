@@ -303,7 +303,7 @@ void update_field_and_internal_forces(){
                 for (int i = 0; i < 6; i++)
                     current_back_stresses[i] = back_stresses[i];
             }else{
-                printf("status\n");
+                printf("stress is too large!!\n");exit(-1);
                 double hardening_stress_increment;
                 double current_relative_hydrostatic_stress;
 
@@ -883,7 +883,7 @@ double calc_global_force_residual_norm(int iteration_step){
  
     if(iteration_step == 0){
         global.temp = global_r_norm;
-        printf("%+15.14e\n", global.temp);
+        //printf("%+15.14e\n", global.temp);
     }
 
     if(global_f_norm == 0){
@@ -891,11 +891,13 @@ double calc_global_force_residual_norm(int iteration_step){
         return global_r_norm / global.temp;
         
     }else{
-        printf("status\n");
+        //printf("status\n");
         return global_r_norm / global_f_norm;
     }
 }
-
+double calc_du_norm(){
+    
+}
 void update_nodal_displacement_increment(){
     for(int node = 0; node < global.subdomain.N_node; node++){
         int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];

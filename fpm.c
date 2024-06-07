@@ -16,26 +16,29 @@ extern Global global;
 extern Option option;
 
 void analize_by_NewtonRaphson(){
-    FILE *fp_debug;
-    char FILE_name[128];
-    double residual_norm;
-    double *du;
+    FILE *fp_debug;         //デバッグ用のファイルポインタ
+    char FILE_name[128];    //デバッグ用の文字配列
+    double error_old = 100.0;       //１反復前の残差ノルム
+    double residual_norm;   //残差ノルム（収束判定）
+    double du_norm = 0;   //変位修正量ノルム（収束判定）
+    int flag = 0;
+    int count = 0;
+    double *du;             //求解用の変位増分ベクトル
+    double *K_u;            //求解用の接線剛性マトリクス
+    double *r;              //求解用の残差ベクトル
 
     global.count = 0.;
     init_field();           //変数を初期化
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
+        int stop_count = 0;
+
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
+        
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
             update_field_and_internal_forces();
             update_external_force(time_step);
             generate_coefficient_matrix();
-            residual_norm = calc_global_force_residual_norm(iteration_step);
-            if(residual_norm <= option.NR_tol){// && iteration_step != 0){
-                printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
-                break;
-            }
-
             #if 0
             if(iteration_step == 1){
                 fp_debug = fopen("coefficient_for_debug.dat", "w");
@@ -61,6 +64,25 @@ void analize_by_NewtonRaphson(){
                 fclose(fp_debug);
             }
             #endif
+            residual_norm = calc_global_force_residual_norm(iteration_step);
+
+            if(residual_norm <= option.NR_tol && iteration_step != 0){
+                printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
+                break;
+            }
+            #if 0
+            //残差が著しく減少しない場合
+            if(0.5 < residual_norm / error_old){
+                stop_count++;
+            }else{
+                error_old = residual_norm;
+            }
+            if(stop_count == option.stop_count){
+                printf("Iteration stop\n");
+                break;
+            }
+            #endif
+            
             ImposeDirichletTangentialMatrix();
             #if 0
             snprintf(FILE_name, 128,"Coefficient_matrix_for_debug/debag_coefficient%d.dat", iteration_step);
@@ -77,6 +99,7 @@ void analize_by_NewtonRaphson(){
             }
             fclose(fp_debug);
             #endif
+
             #if 0
             snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d_%d.dat", time_step, iteration_step);
             fp_debug = fopen(FILE_name,"w");
@@ -94,41 +117,66 @@ void analize_by_NewtonRaphson(){
             #endif
 
             //求解用の変数ベクトルを用意
-            if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+            int solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
+            //printf("%d\n", solver_DoF);
+            if((du = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
                 exit(-1);
             }
+            if((r = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
+                printf("Error:r's memory is not enough\n");
+                exit(-1);
+            }
+            if((K_u = (double *)calloc(solver_DoF * solver_DoF, sizeof(double))) == NULL){
+                printf("Error:K_u's memory is not enough\n");
+                exit(-1);
+            }
+            assemble_matrix_and_vector_for_Dirichlet(K_u, r);
+            //printf("complete!\n");
+            //exit(-1);
             //printf("Now solving!!\n");
-            solver_LU_decomposition(global.subdomain.Global_K, du, global.subdomain.global_residual_force, option.dim * global.subdomain.N_point);
+            solver_LU_decomposition(K_u, du, r, solver_DoF);
 
-            for(int i = 0; i < global.subdomain.N_point; i++)
-                for(int j = 0; j < option.dim; j++)
-                    global.subdomain.displacement_increment[i][j] += du[option.dim * i + j];
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < option.dim; j++){
+                    for(int k = 0; k < global.bc.N_D_DoF; k++)
+                        if(option.dim * i + j == global.bc.fixed_dof[k]) flag++;
+                    if(flag == 0){
+                        global.subdomain.displacement_increment[i][j] += du[count];
+                        count++;
+                    }
+                    flag = 0;   
+                }
+            }
+            //printf("count = %d\n", count);
+            //exit(-1);
+            count = 0;
             
-            #if 1
+            #if 0
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             fprintf(fp_debug, "point        /displacement           x           y           z\n");
             for(int i = 0; i < global.subdomain.N_point; i++){
                 fprintf(fp_debug, "%5d  ", i);
                 for(int j = 0; j < option.dim; j++){
-                    fprintf(fp_debug, "%+15.14e  ", du[option.dim * i + j]);
+                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.displacement_increment[i][j]);
                 }
                 fprintf(fp_debug, "\n");
             }
             fclose(fp_debug);
             #endif
-            free(du);
-            #if 0
+
+            free(K_u);
+            free(r);
+
+            #if 1
             double u_norm = 0.;
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                for(int j = 0; j < option.dim; j++){
-                    u_norm += du[option.dim * i + j] * du[option.dim * i + j];
-                }
-            }
+            for(int i = 0; i < solver_DoF; i++)
+                u_norm += du[i] * du[i];
             u_norm = sqrt(u_norm);
-            printf("%+15.14e\n", u_norm);
+            //printf("%5d   %+15.14e\n", iteration_step+1, u_norm);
             #endif
+            free(du);
 
             update_nodal_displacement_increment();
             //for(int i = 0 ; i < global.subdomain.N_node; i++){
@@ -145,7 +193,7 @@ void analize_by_NewtonRaphson(){
             //}
             
 
-            printf("%5d   %+15.14e\n", iteration_step+1, residual_norm);
+            printf("%5d   %+15.14e: %+15.14e\n", iteration_step+1, residual_norm, u_norm);
             if(iteration_step == 1000){
                 printf("Iteration is not converged\n");
                 exit(-1);

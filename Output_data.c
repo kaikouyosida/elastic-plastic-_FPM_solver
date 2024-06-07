@@ -2,6 +2,7 @@
 #include<stdlib.h>
 #include"type.h"
 #include"Output_data.h"
+#include"scalar.h"
 
 #define VERTEX 8
 
@@ -12,6 +13,8 @@ void Output_data(int time_step){
     FILE *fp_deformation;
     FILE *fp_stress;
     FILE *fp_strain;
+    FILE *fp_F_grad;
+    FILE *fp_volume;
     char FILE_name[128];
 
     snprintf(FILE_name, 128, "Data_Files_Output/Output_deformation_time%d.dat", time_step);
@@ -58,6 +61,36 @@ void Output_data(int time_step){
         fprintf(fp_strain, "\n");
     }
     fclose(fp_strain);
+
+    snprintf(FILE_name, 128, "Data_Files_Output/Output_deformation_gradient_time%d.dat", time_step);
+    fp_F_grad = fopen(FILE_name, "w");
+    if(fp_F_grad == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_F_grad, "point number / deformation gradient xx xy xz yx yy yz zx zy zz\n");
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_F_grad,  "%7d    ", i);
+        for(int j = 0; j < option.dim ; j++){
+            for(int k = 0; k < option.dim; k++){
+                fprintf(fp_F_grad, "%+15.14e    ", global.subdomain.current_deformation_gradients[j][k][i]);
+            }
+        }
+        fprintf(fp_F_grad, "\n");
+    }
+    fclose(fp_F_grad);
+    snprintf(FILE_name, 128, "Data_Files_Output/Output_volumes_time%d.dat", time_step);
+    fp_volume = fopen(FILE_name, "w");
+    if(fp_volume == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_F_grad, "point number / subdomain's volume\n");
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        double volume = calc_subdomain_volume(i);
+        fprintf(fp_volume, "%7d     %+15.14e\n", i, volume);
+    }
+    fclose(fp_volume);
 }
 
 void paraview_node_data(int time_step){
@@ -167,7 +200,7 @@ void paraview_node_data(int time_step){
     for(int i = 0 ; i < global.subdomain.N_point; i++)
         fprintf(fp_paraview,  "12\n");
     fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
-    fprintf(fp_paraview, "TENSORS node_stress float\n");
+    fprintf(fp_paraview, "TENSORS node_stress double\n");
     for(int node = 0; node < global.subdomain.N_node; node++){
         for(int i = 0; i < 9; i++)
             stresses[i] = 0.;
@@ -186,9 +219,9 @@ void paraview_node_data(int time_step){
         }
         for(int i = 0; i < 9; i++)
             stresses[i] /= (double)N_ar_node;
-        fprintf(fp_paraview,"%+e %+e %+e\n", stresses[0], stresses[1], stresses[2]);
-        fprintf(fp_paraview,"%+e %+e %+e\n", stresses[3], stresses[4], stresses[5]);
-        fprintf(fp_paraview,"%+e %+e %+e\n", stresses[6], stresses[7], stresses[8]);
+        fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", stresses[0], stresses[1], stresses[2]);
+        fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", stresses[3], stresses[4], stresses[5]);
+        fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", stresses[6], stresses[7], stresses[8]);
     }
     fclose(fp_paraview);
 }

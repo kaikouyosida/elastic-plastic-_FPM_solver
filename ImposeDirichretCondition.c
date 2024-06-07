@@ -18,7 +18,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   
   else if(type == 1){
     // 変位を固定 //
-		fixed_u = 0.005 * time / time_end;
+		fixed_u = 0.5 * time / time_end;
     //printf("%+8.7e %+8.7e\n", time, time_end);
 	}
   else if(type == 2){
@@ -57,7 +57,8 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
 }
 void ImposeDirichretResidual(int iteration_step)
 {
-    int count = 0;
+    int count = 0;                                         //カウンタ
+    int DoF_free = option.dim * global.subdomain.N_point;  // 拘束を考慮しない自由度
     double fixed_u_inc = 0.; // 規定された変位の増分量
     int type_num[3];         // ディリクレ条件の番号
     double fixed_xyz[3];     // 変位を固定するポイントの位置
@@ -80,14 +81,14 @@ void ImposeDirichretResidual(int iteration_step)
                 type_num[0] = global.bc.Dirichlet_type[i] % 100;
                 fixed_u_inc = fixed_deformation(option.time, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[0]);
                 fixed_u_inc -= fixed_deformation(option.time_old, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[0]);
-                global.subdomain.global_residual_force[3 * i] = fixed_u_inc;
+                global.subdomain.global_residual_force[option.dim * i] = fixed_u_inc;
                 #if 1
                 for(int j = 0; j < global.subdomain.N_point; j++){
                   for(int k = 0; k < option.dim; k++){
                     for(int l = 0; l < global.bc.N_D_DoF; l++)
                       if(option.dim * j + k == global.bc.fixed_dof[l]) count++;
                     if(count == 0)
-                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[option.dim * (option.dim * j + k) + option.dim * i] * fixed_u_inc;
+                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[DoF_free * (option.dim * j + k) + option.dim * i] * fixed_u_inc;
                     count = 0;
                   }
                 }
@@ -100,14 +101,14 @@ void ImposeDirichretResidual(int iteration_step)
                 type_num[1] = (type_num[1] - type_num[0]) / 100;
                 fixed_u_inc = fixed_deformation(option.time, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[1]);
                 fixed_u_inc -= fixed_deformation(option.time_old, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[1]);
-                global.subdomain.global_residual_force[3 * i + 1] = fixed_u_inc;
+                global.subdomain.global_residual_force[option.dim * i + 1] = fixed_u_inc;
                 #if 1
                 for(int j = 0; j < global.subdomain.N_point; j++){
                   for(int k = 0; k < option.dim; k++){
                     for(int l = 0; l < global.bc.N_D_DoF; l++)
                       if(option.dim * j + k == global.bc.fixed_dof[l]) count++;
                     if(count == 0)
-                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[option.dim * (option.dim * j + k) + option.dim * i + 1] * fixed_u_inc;
+                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[DoF_free * (option.dim * j + k) + option.dim * i + 1] * fixed_u_inc;
                     count = 0;
                   }
                 }
@@ -119,14 +120,14 @@ void ImposeDirichretResidual(int iteration_step)
                 type_num[2] = (global.bc.Dirichlet_type[i] - type_num[1] * 100 - type_num[0]) / 10000;
                 fixed_u_inc = fixed_deformation(option.time, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[2]);
                 fixed_u_inc -= fixed_deformation(option.time_old, option.time_end, fixed_xyz[0], fixed_xyz[1], fixed_xyz[2], type_num[2]);
-                global.subdomain.global_residual_force[3 * i + 2] = fixed_u_inc;
+                global.subdomain.global_residual_force[option.dim * i + 2] = fixed_u_inc;
                 #if 1
                 for(int j = 0; j < global.subdomain.N_point; j++){
                   for(int k = 0; k < option.dim; k++){
                     for(int l = 0; l < global.bc.N_D_DoF; l++)
                       if(option.dim * j + k == global.bc.fixed_dof[l]) count++;
                     if(count == 0)
-                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[option.dim * (option.dim * j + k) + option.dim * i + 2] * fixed_u_inc;
+                       global.subdomain.global_residual_force[option.dim * j + k] -= global.subdomain.Global_K[DoF_free * (option.dim * j + k) + option.dim * i + 2] * fixed_u_inc;
                     count = 0;
                   }
                 }
@@ -183,4 +184,41 @@ void ImposeDirichletTangentialMatrix(){
       global.subdomain.Global_K[DoF_free*(3*i+2) + 3*i+2] = 1.0;
     }
 	}
+}
+
+void assemble_matrix_and_vector_for_Dirichlet(double *K_u, double *residual){
+  int DoF_free = option.dim * global.subdomain.N_point;
+  int flag = 0;
+  int count = 0;
+
+  //残差ベクトルからディリクレ境界条件が反映される自由度を削除
+  for(int i = 0; i < global.subdomain.N_point; i++){
+    for(int j = 0; j < option.dim; j++){
+      for(int k = 0; k < global.bc.N_D_DoF; k++)
+        if(option.dim * i + j == global.bc.fixed_dof[k]) flag++;
+
+        if(flag == 0){
+          residual[count] = global.subdomain.global_residual_force[option.dim * i + j];
+          count++;
+        }else{
+          global.subdomain.displacement_increment[i][j] += global.subdomain.global_residual_force[option.dim * i + j];
+        }
+        flag = 0;
+    }
+  }
+  count = 0;
+
+  //係数マトリクスからディリクレ境界条件が反映される自由度を削除
+  for(int i = 0; i < DoF_free; i++){
+    for(int j = 0; j < DoF_free; j++){
+      for(int k = 0; k < global.bc.N_D_DoF; k++){
+        if(i == global.bc.fixed_dof[k] || j == global.bc.fixed_dof[k]) flag++;
+      }
+      if(flag == 0){
+        K_u[count] = global.subdomain.Global_K[DoF_free * i + j];
+        count++;
+      }
+      flag = 0;
+    }
+  }
 }
