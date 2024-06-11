@@ -224,6 +224,24 @@ void update_field_and_internal_forces(){
         elastic_strain_tensor[2][2] = 2.0 * elastic_strains[2];
         
         calculateTensorExponent(elastic_left_cauchy_green_deformations, elastic_strain_tensor);
+        #if 0
+        double A[3][3];
+        double B[3][3];
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                A[i][j] = 0.;
+            }
+        }
+        A[0][0] = 1.0; A[1][1] = 1.0; A[2][2] = 9.0 / 4.0;
+        calculateTensorExponent(B, A);
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                printf("%+7.6e  ", B[i][j]);
+            }
+            printf("\n");
+        }
+        exit(-1);
+        #endif
 
         //試行弾性左コーシーグリーンテンソルの計算 [B]^trial = [dF] * [B]^e * [dF]^T 
         for (int i = 0; i < 3; i++)
@@ -922,7 +940,10 @@ double calc_global_force_residual_norm(int iteration_step){
 double calc_du_norm(){
     
 }
-void update_nodal_displacement_increment(){
+void update_nodal_displacement_increment(double *latest_point_xyz){
+    double *latest_node_xyz;
+    double u_h[3];
+    #if 0
     for(int node = 0; node < global.subdomain.N_node; node++){
         int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
         for(int i = 0; i < option.dim; i++){
@@ -932,6 +953,33 @@ void update_nodal_displacement_increment(){
             }
         }
     }
+    #endif
+    #if 1
+    if((latest_node_xyz = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){
+        printf("latest_point_xyz's is not neough\n");
+        exit(-1);
+    }
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim; j++){
+            latest_node_xyz[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j]
+                                                + global.subdomain.nodal_displacements[i][j]
+                                                + global.subdomain.nodal_displacement_increments[i][j];
+        }
+    }
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+        for(int i = 0; i < N_ar_point; i++){
+            trial_u(latest_node_xyz, global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i], latest_point_xyz, u_h);
+            for(int j = 0; j < option.dim; j++){
+                global.subdomain.nodal_displacement_increments[node][j] += u_h[j];
+            }
+        }
+        for(int i = 0; i < option.dim; i++)
+            global.subdomain.nodal_displacement_increments[node][i] /= (double)N_ar_point;
+    }
+    free(latest_node_xyz);
+    #endif
+
 }
 
 void increment_field(){

@@ -3,6 +3,7 @@
 #include<math.h>
 #include"type.h"
 #include"fpm.h"
+#include"scalar.h"
 #include"field.h"
 #include"coefficient_matrix.h"
 #include"internal_force.h"
@@ -118,7 +119,7 @@ void analize_by_NewtonRaphson(){
             fclose(fp_debug);
             #endif
 
-            //求解用の変数ベクトルを用意
+            //求解用の変数ベクトルと係数マトリクスを用意.
             int solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
             //printf("%d\n", solver_DoF);
             if((du = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
@@ -135,20 +136,23 @@ void analize_by_NewtonRaphson(){
             }
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
 
-            #if 1
-            snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d_%d.dat", time_step, iteration_step);
-            fp_debug = fopen(FILE_name,"w");
-            if(fp_debug == NULL){
-                printf("Error: Memory is not open\n");
-                exit(-1);
-            }
-            for(int i = 0; i < solver_DoF; i++)
-                fprintf(fp_debug,"%+15.14e\n", r[i]);
-            fclose(fp_debug);
-            #endif
+            //LU分解で連立一次方程式を求解
             //printf("Now solving!!\n");
             solver_LU_decomposition(K_u, du, r, solver_DoF);
 
+            //ポイントと節点の変位修正ベクトルの値をもとに変位増分を更新.
+            double *latest_point_xyz;
+            if((latest_point_xyz = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+                printf("latest_point_xyz's is not neough\n");
+                exit(-1);
+            }
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < option.dim; j++){
+                    latest_point_xyz[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                                                        + global.subdomain.displacement[i][j]
+                                                        + global.subdomain.displacement_increment[i][j];
+                }
+            }
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < option.dim; j++){
                     for(int k = 0; k < global.bc.N_D_DoF; k++)
@@ -163,7 +167,21 @@ void analize_by_NewtonRaphson(){
             //printf("count = %d\n", count);
             //exit(-1);
             count = 0;
-            
+
+            update_nodal_displacement_increment(latest_point_xyz);
+
+            free(latest_point_xyz);
+            #if 1
+            snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d_%d.dat", time_step, iteration_step);
+            fp_debug = fopen(FILE_name,"w");
+            if(fp_debug == NULL){
+                printf("Error: Memory is not open\n");
+                exit(-1);
+            }
+            for(int i = 0; i < solver_DoF; i++)
+                fprintf(fp_debug,"%+15.14e\n", r[i]);
+            fclose(fp_debug);
+            #endif
             #if 1
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
@@ -181,16 +199,15 @@ void analize_by_NewtonRaphson(){
             free(K_u);
             free(r);
 
-            #if 1
+            #if 0
             double u_norm = 0.;
             for(int i = 0; i < solver_DoF; i++)
                 u_norm += du[i] * du[i];
             u_norm = sqrt(u_norm);
-            //printf("%5d   %+15.14e\n", iteration_step+1, u_norm);
+            printf("%5d   %+15.14e\n", iteration_step+1, u_norm);
             #endif
             free(du);
 
-            update_nodal_displacement_increment();
             //for(int i = 0 ; i < global.subdomain.N_node; i++){
                 //for(int j = 0; j < 3; j++){
                     //printf("%+15.14e   ", global.subdomain.nodal_displacement_increments[i][j] + global.subdomain.node_XYZ[3*i+j]);
@@ -203,9 +220,14 @@ void analize_by_NewtonRaphson(){
                 //}
                 //printf("\n");
             //}
-            
+            #if 0
+            double volume = 0.;
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                volume += calc_subdomain_volume(i);
+            }
+            printf("volume = %lf\n", volume);
+            #endif
 
-            
             if(iteration_step == 1000){
                 printf("Iteration is not converged\n");
                 exit(-1);

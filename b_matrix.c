@@ -57,7 +57,7 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
     }
     // サポートドメインが1つの場合 //
     else
-    {
+    {   printf("support is too small!\n");
         support_point = support[support_offset[point_n]];
         for (int i = 0; i < dim; i++)
             L2 += point_xyz[dim * point_n + i] * point_xyz[dim * point_n + i] + point_xyz[dim * support_point + i] * point_xyz[dim * support_point + i];
@@ -93,7 +93,7 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
         printf("Error: Latest_point_XYZ's memory is not enough\n");
         exit(-1);
     }
-    G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
+    G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
 
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
@@ -255,7 +255,7 @@ void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
         }
     }
 
-    G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
+    G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
     calc_G(option.dim, point_n, point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
 
     calc_shape(xyz, option.dim, point_n, point_XYZ, global.subdomain.support_offset, shapeF_t);

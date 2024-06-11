@@ -8,14 +8,16 @@ void generateSMatrix(double s_matrix[9][9],
                      double current_stresses[6])
 {
     //Sマトリクスのゼロ処理
+    #if 0
     for (int i = 0; i < 9; i++)
         for (int j = 0; j < 9; j++)
             s_matrix[i][j] = 0.0;
     
-    //for(int i = 0; i < 6; i++){
-        //printf("%+15.14e    ", current_stresses[i]);
-    //}
-    //printf("\n");
+    for(int i = 0; i < 6; i++){
+        printf("%+15.14e    ", current_stresses[i]);
+    }
+    printf("\n");
+    #endif
     //Sマトリクスの計算
     for (int i = 0; i < option.dim; i++)
     {

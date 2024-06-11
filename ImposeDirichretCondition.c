@@ -18,7 +18,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   
   else if(type == 1){
     // 変位を固定 //
-		fixed_u = 0.05 * time / time_end;
+		fixed_u = 0.5 * time / time_end;
     //printf("%+8.7e %+8.7e\n", time, time_end);
 	}
   else if(type == 2){
