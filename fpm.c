@@ -39,8 +39,9 @@ void analize_by_NewtonRaphson(){
             update_field_and_internal_forces();
             update_external_force(time_step);
             generate_coefficient_matrix();
+
             #if 0
-            if(iteration_step == 1){
+            if(iteration_step == 0){
                 fp_debug = fopen("coefficient_for_debug.dat", "w");
                 if(fp_debug == NULL)
                     printf("FILE is not enough\n");
@@ -51,7 +52,7 @@ void analize_by_NewtonRaphson(){
                     fprintf(fp_debug, "\n");
                 }
             }
-            if(iteration_step > 1){
+            if(iteration_step > 0){
                 fp_debug = fopen("coefficient_for_debug.dat", "r");
                 if(fp_debug == NULL)
                     printf("File is not open\n");
@@ -66,10 +67,11 @@ void analize_by_NewtonRaphson(){
             #endif
             residual_norm = calc_global_force_residual_norm(iteration_step);
 
-            if(residual_norm <= option.NR_tol && iteration_step != 0){
+            if(residual_norm <= option.NR_tol){// && iteration_step != 0){
                 printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
                 break;
             }
+            printf("%5d   %+15.14e\n", iteration_step+1, residual_norm);
             #if 0
             //残差が著しく減少しない場合
             if(0.5 < residual_norm / error_old){
@@ -132,8 +134,18 @@ void analize_by_NewtonRaphson(){
                 exit(-1);
             }
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
-            //printf("complete!\n");
-            //exit(-1);
+
+            #if 1
+            snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d_%d.dat", time_step, iteration_step);
+            fp_debug = fopen(FILE_name,"w");
+            if(fp_debug == NULL){
+                printf("Error: Memory is not open\n");
+                exit(-1);
+            }
+            for(int i = 0; i < solver_DoF; i++)
+                fprintf(fp_debug,"%+15.14e\n", r[i]);
+            fclose(fp_debug);
+            #endif
             //printf("Now solving!!\n");
             solver_LU_decomposition(K_u, du, r, solver_DoF);
 
@@ -152,7 +164,7 @@ void analize_by_NewtonRaphson(){
             //exit(-1);
             count = 0;
             
-            #if 0
+            #if 1
             snprintf(FILE_name, 128,"Data_Files_Output/debag%d.dat", iteration_step);
             fp_debug = fopen(FILE_name,"w");
             fprintf(fp_debug, "point        /displacement           x           y           z\n");
@@ -193,7 +205,7 @@ void analize_by_NewtonRaphson(){
             //}
             
 
-            printf("%5d   %+15.14e: %+15.14e\n", iteration_step+1, residual_norm, u_norm);
+            
             if(iteration_step == 1000){
                 printf("Iteration is not converged\n");
                 exit(-1);
@@ -220,8 +232,8 @@ void Linear_analization(){
 
     init_field();
     update_external_force(0);
-    global.buf = calc_global_force_residual_norm(0);
     generate_coefficient_linear();
+    global.buf = calc_global_force_residual_norm(0);
     ImposeDirichletTangentialMatrix();
     
     //求解用の変数ベクトルを用意

@@ -84,7 +84,7 @@ void calculateTensorLogarithm(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    double taylor_series_tolerance = 1.0E-15;
+    double taylor_series_tolerance = 1.0e-15;
     int taylor_series_max_iteration_count = 1000;
 
     double tensor[3][3], square_tensor[3][3];

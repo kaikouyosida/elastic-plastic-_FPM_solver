@@ -255,7 +255,7 @@ void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
         }
     }
 
-    G = matrix(9, option.dim * N_support + option.dim);
+    G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
     calc_G(option.dim, point_n, point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
 
     calc_shape(xyz, option.dim, point_n, point_XYZ, global.subdomain.support_offset, shapeF_t);

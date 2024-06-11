@@ -224,14 +224,7 @@ void update_field_and_internal_forces(){
         elastic_strain_tensor[2][2] = 2.0 * elastic_strains[2];
         
         calculateTensorExponent(elastic_left_cauchy_green_deformations, elastic_strain_tensor);
-        //for(int i = 0; i < 3; i++){
-            //for(int j = 0; j < 3; j++){
-                //printf("%+6.5e ", elastic_left_cauchy_green_deformations[i][j]);
-            //}
-            //printf("\n");
-        //}
-        //printf("\n");
-        
+
         //試行弾性左コーシーグリーンテンソルの計算 [B]^trial = [dF] * [B]^e * [dF]^T 
         for (int i = 0; i < 3; i++)
                     for (int j = 0; j < 3; j++)
@@ -258,7 +251,34 @@ void update_field_and_internal_forces(){
         
         //試行弾性ひずみを計算（ {epsilon}^trial = 1/2 * ln([B]^trial)　
         calculateTensorLogarithm(elastic_strain_tensor, trial_elastic_left_cauchy_green_deformations);
+        #if 0
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                printf("%+6.5e ", elastic_strain_tensor[i][j]);
+            }
+            printf("\n");
+        }
+        printf("\n");
+        #endif
 
+        #if 0
+        double A[3][3];
+        double B[3][3];
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                A[i][j] = 0.;
+            }
+        }
+        A[0][0] = 1.0; A[1][1] = 1.0; A[2][2] = 9.0 / 4.0;
+        calculateTensorLogarithm(B, A);
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                printf("%+7.6e  ", B[i][j]);
+            }
+            printf("\n");
+        }
+        exit(-1);
+        #endif
         current_elastic_strains[0] = 0.5 * elastic_strain_tensor[0][0];
         current_elastic_strains[1] = 0.5 * elastic_strain_tensor[1][1];
         current_elastic_strains[2] = 0.5 * elastic_strain_tensor[2][2];
@@ -410,16 +430,18 @@ void update_field_and_internal_forces(){
                     subdomain_internal_force[i][j] = force_j * volume;
                 }
             }
+
+            //各サブドメインで内力ベクトルをアセンブル
             for(int i = 0; i < N_support; i++){
                 for(int j = 0; j < option.dim; j++){
                     global.subdomain.global_internal_force[support[i]][j] += subdomain_internal_force[i + 1][j];
                 }
             }
-
             for(int i = 0; i < option.dim; i++)
                 global.subdomain.global_internal_force[point][i] += subdomain_internal_force[0][i];
-            #endif 
-            //各サブドメインにおける応力を記録（ペナルティ項の計算に用いる）
+            #endif
+
+            //各サブドメインにおける応力とひずみを記録（ペナルティ項の計算に用いる）
             for(int i = 0; i < 6; i++){
                 all_stress[point][i] = current_stresses[i];
                 global.subdomain.current_stresses[point][i] = current_stresses[i];
@@ -649,6 +671,8 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
                 jacobian = calc_area_change(global.subdomain.shared_face[face], s, t, X);
+
+                //ノードの座標からガウス積分点の位置を近似、決定
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]

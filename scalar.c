@@ -66,7 +66,7 @@ double calc_subdomain_volume(int point_n){
     for(int i = 0; i < 8; i++)
         subdomain_node[i] = global.subdomain.subdomain_node[8 * point_n + i];
    
-    for(int i = 0; i < 3; i++){
+    for(int i = 0; i < option.dim; i++){
         double center_i = 0.;
         for(int j = 0; j < 8; j++){
             center_i += (global.subdomain.node_XYZ[option.dim * subdomain_node[j] + i]
