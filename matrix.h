@@ -38,10 +38,15 @@ double calc_3x3matrix_norm(double (*matrix)[3]);
 //3×3マトリクスのデターミナント
 double calc_3x3matrix_determinant(double (*matrix)[3]);
 
-//法線ベクトルの計算, それぞれの用途に合った形のマトリクスで用意
-void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6]);
-void calc_Ne_diagonal(int dim , int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*Ne_d)[9]);
-
 //3×3の逆行列
 double invert3x3Matrix(double matrix_out[3][3],
                        double matrix[3][3]);
+
+//法線ベクトルの計算
+void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double *Ne);
+
+//法線ベクトルの計算, それぞれの用途に合った形のマトリクスで用意
+void calc_Ne_3x6(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6]);
+
+void calc_Ne_3x9(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[9]);
+

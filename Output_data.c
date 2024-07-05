@@ -107,7 +107,7 @@ void paraview_node_data(int time_step){
     fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
     fprintf(fp_paraview, "ASCII\n");
     fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
-    fprintf(fp_paraview, "POINTS %d float\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
 
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim ; j++){
@@ -136,7 +136,7 @@ void paraview_node_data(int time_step){
     fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
     fprintf(fp_paraview, "ASCII\n");
     fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
-    fprintf(fp_paraview, "POINTS %d float\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
 
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim ; j++){
@@ -158,7 +158,7 @@ void paraview_node_data(int time_step){
     for(int i = 0 ; i < global.subdomain.N_point; i++)
         fprintf(fp_paraview,  "12\n");
     fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
-    fprintf(fp_paraview, "VECTORS node_deformation float\n");
+    fprintf(fp_paraview, "VECTORS node_deformation double\n");
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim ; j++){
             fprintf(fp_paraview, "%+15.14e  ",  global.subdomain.nodal_displacements[i][j]);
@@ -178,7 +178,7 @@ void paraview_node_data(int time_step){
     fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
     fprintf(fp_paraview, "ASCII\n");
     fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
-    fprintf(fp_paraview, "POINTS %d float\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
 
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim ; j++){

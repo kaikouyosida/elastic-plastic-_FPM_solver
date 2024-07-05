@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "type.h": "c"
+        "type.h": "c",
+        "imposedirichretcondition.h": "c"
     },
     "makefile.makefilePath": "C:\\cygwin64\\bin",
     "makefile.buildLog": "C:\\Users\\jitia\\Downloads\\x86_64-8.1.0-release-posix-seh-rt_v6-rev0 (2)",

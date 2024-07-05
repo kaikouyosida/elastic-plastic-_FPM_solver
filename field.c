@@ -20,10 +20,7 @@ void init_field(){
     }
 
     //残差ベクトル{r} = {Fint} - λ{Fext}の計算
-    if((global.subdomain.global_residual_force = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error:Global_residual_force's memory is not enough\n");
-        exit(-1);
-    }
+    global.subdomain.global_residual_force = matrix(global.subdomain.N_point, option.dim);
 
     //外力ベクトルをゼロ処理
     global.subdomain.external_force = matrix(global.subdomain.N_point, option.dim);
@@ -97,7 +94,11 @@ void init_field(){
 
     //節点値をゼロ処理
     global.subdomain.nodal_displacements = matrix(global.subdomain.N_node, option.dim);
+    global.subdomain.nodal_displacement_plus = matrix(global.subdomain.N_int_boundary * 4, option.dim);     //境界上の節点数＊内部境界の節点変位
+    global.subdomain.nodal_displacement_minus = matrix(global.subdomain.N_int_boundary * 4, option.dim);
     global.subdomain.nodal_displacement_increments = matrix(global.subdomain.N_node, option.dim);
+    global.subdomain.nodal_displacement_increment_plus = matrix(global.subdomain.N_int_boundary * 4, option.dim);     //境界上の節点数＊内部境界の節点変位増分
+    global.subdomain.nodal_displacement_increment_minus = matrix(global.subdomain.N_int_boundary * 4, option.dim);
     global.subdomain.nodal_stresses = matrix(global.subdomain.N_node, option.dim);
 
     if((global.subdomain.nodal_equivalent_plastic_strains = (double *)calloc(global.subdomain.N_node, sizeof(double))) == NULL){
@@ -116,7 +117,11 @@ void break_field(){
     free(global.subdomain.nodal_yield_stresses);
     free(global.subdomain.nodal_equivalent_plastic_strains);
     free_matrix(global.subdomain.nodal_stresses);
+    free_matrix(global.subdomain.nodal_displacement_increment_minus);
+    free_matrix(global.subdomain.nodal_displacement_increment_plus);
     free_matrix(global.subdomain.nodal_displacement_increments);
+    free_matrix(global.subdomain.nodal_displacement_minus);
+    free_matrix(global.subdomain.nodal_displacement_plus);
     free_matrix(global.subdomain.nodal_displacements);
     free_matrix(global.subdomain.current_back_stresses);
     free_matrix(global.subdomain.back_stresses);
@@ -137,7 +142,7 @@ void break_field(){
     free_matrix(global.subdomain.previous_global_external_force);
     free_matrix(global.subdomain.global_external_force);
     free_matrix(global.subdomain.external_force);
-    free(global.subdomain.global_residual_force);
+    free_matrix(global.subdomain.global_residual_force);
     free(global.subdomain.Global_K);
     free_matrix(global.subdomain.displacement_increment);
     free_matrix(global.subdomain.displacement);

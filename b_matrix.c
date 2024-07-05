@@ -87,23 +87,23 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
 void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
-    double *latest_point_XYZ;
+    double *current_point_XYZ;
 
-    if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error: Latest_point_XYZ's memory is not enough\n");
+    if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        printf("Error: current_point_XYZ's memory is not enough\n");
         exit(-1);
     }
     G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
 
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
-            latest_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+            current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
                                                  + global.subdomain.displacement[i][j]
                                                  + global.subdomain.displacement_increment[i][j];
         }
     }
 
-    calc_G(option.dim, point_n, latest_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+    calc_G(option.dim, point_n, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
     
         double dn_dx_0_i = G[0][0];
         double dn_dx_1_i = G[1][0];
@@ -158,9 +158,10 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
         }
 
     free_matrix(G);
-    free(latest_point_XYZ);
+    free(current_point_XYZ);
 }
 
+//Bマトリクスの計算
 double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];

@@ -58,7 +58,7 @@ typedef struct
 
     double *Global_K;                           //全体剛性マトリクス
     
-    double *global_residual_force;              //全体の残差ベクトル
+    double **global_residual_force;              //全体の残差ベクトル
 
     double **external_force;                    //外力ベクトル
     double **global_external_force;             //全体の外力ベクトル
@@ -87,8 +87,12 @@ typedef struct
     double **back_stresses;                         //背応力
     double **current_back_stresses;                 //現配置における背応力
 
-    double **nodal_displacements;                   //節点の変位
-    double **nodal_displacement_increments;         //節点の変位増分
+    double **nodal_displacements;                   //節点の変位(minusとplusの算術平均)
+    double **nodal_displacement_plus;               //共有する境界（境界番号face_n）の2*face_n側の形状関数から得た節点変位
+    double **nodal_displacement_minus;              //共有する境界（境界番号face_n）の2*face_n+1側の形状関数から得た節点編変位
+    double **nodal_displacement_increments;         //節点の変位増分(minusとplusの算術平均)
+    double **nodal_displacement_increment_plus;     //共有する境界（境界番号face_n）の2*face_n側の形状関数から得た節点変位増分
+    double **nodal_displacement_increment_minus;    //共有する境界（境界番号face_n）の2*face_n+1側の形状関数から得た節点編変位増分
     double **nodal_stresses;                        //応力の節点値
     double *nodal_equivalent_plastic_strains;       //相当塑性ひずみの節点値
     double *nodal_yield_stresses;                   //降伏応力の節点値
@@ -123,5 +127,4 @@ typedef struct{
 
     int buf;                                        //バッファ
     int count;                                      //カウンタ
-    double temp;
 } Global;

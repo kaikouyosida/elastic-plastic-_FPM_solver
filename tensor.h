@@ -33,6 +33,3 @@ void calculateEigenvalues(double eigenvalues[3],
 void calculateEigenprojections(double eigenprojections[3][3][3],
                                double eigenvalues[3],
                                double tensor[3][3]);
-
-//交代行列を計算
-void alternating_matrix(double e[3][3][3]);

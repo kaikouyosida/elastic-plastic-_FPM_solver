@@ -23,10 +23,12 @@ double** matrix(int m, int n){
 	}
 	return A;
 }
+
 void free_matrix(double **A){
 	free( (double *) A[0] );
 	free( (double **) A );
 }
+
 double ***threetimes_tensor(int m, int n, int l){
     double ***A;
     if((A = (double ***)calloc(m, sizeof(double **))) == NULL){
@@ -54,11 +56,13 @@ double ***threetimes_tensor(int m, int n, int l){
     }
     return A;
 }
+
 void free_tensor(double ***A){
     free((double *) A[0][0]);
     free((double **) A[0]);
     free((double ***) A);
 }
+
 void identify3x3Matrix(double (*matrix)[3]){
     matrix[0][0] = 1.0;
     matrix[0][1] = 0.0;
@@ -70,6 +74,7 @@ void identify3x3Matrix(double (*matrix)[3]){
     matrix[2][1] = 0.0;
     matrix[2][2] = 1.0;
 }
+
 void zeroize3x3Matrix(double (*matrix)[3])
 {
     matrix[0][0] = 0.0;
@@ -82,6 +87,7 @@ void zeroize3x3Matrix(double (*matrix)[3])
     matrix[2][1] = 0.0;
     matrix[2][2] = 0.0;
 }
+
 // 正則行列の逆行列をガウスの消去法で計算 //
 void inverse_mat3x3(int dim, double (*A)[3], double (*inverse_A)[3]){
 	double **B;       // Aの成分をコピーして、計算に用いる行列
@@ -141,6 +147,7 @@ void inverse_mat3x3(int dim, double (*A)[3], double (*inverse_A)[3]){
 
 	free_matrix(B);
 }
+
 // Am行AnBm列の行列とAnBm行Bn列の行列の積をXに保存 //
 void multi_mat(int Am, int Bn, double** A, double** B, int AnBm, double** X){
 	for(int i=0;i<Am;i++){
@@ -153,12 +160,14 @@ void multi_mat(int Am, int Bn, double** A, double** B, int AnBm, double** X){
 		}
 	}
 }
+
 // m行n列の行列Xの転置行列をXTに保存 //
 void trans_mat(int m, int n, double** X, double** XT){
   for(int i=0;i<n;i++){
 		for(int j=0;j<m;j++) XT[i][j] = X[j][i];
 	}
 }
+
 // 正則行列の逆行列をガウスの消去法で計算 //
 void inverse_mat(int mn, double** A, double** inverse_A){
 	double **B;       // Aの成分をコピーして、計算に用いる行列
@@ -218,6 +227,8 @@ void inverse_mat(int mn, double** A, double** inverse_A){
 
 	free_matrix(B);
 }
+
+//３×３マトリクスの二重積
 double calc_3x3matrix_norm(double (*matrix)[3]){
     double temp = 0.0;
     int i, j;
@@ -228,6 +239,8 @@ double calc_3x3matrix_norm(double (*matrix)[3]){
 
     return sqrt(temp);
 }
+
+//３×３マトリクスの行列式
 double calc_3x3matrix_determinant(double (*matrix)[3])
 {
     return
@@ -238,6 +251,8 @@ double calc_3x3matrix_determinant(double (*matrix)[3])
         - matrix[0][1] * matrix[1][0] * matrix[2][2]
         - matrix[0][2] * matrix[1][1] * matrix[2][0];
 }
+
+//３×３マトリクスの積
 void calculate3x3MatrixSquare(double matrix_out[3][3],
                               double matrix_in[3][3])
 {
@@ -255,8 +270,9 @@ void calculate3x3MatrixSquare(double matrix_out[3][3],
             matrix_out[i][j] = temp;
         }
 }
+
 //法線ベクトルの計算
-void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6])
+void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double *Ne)
 {
 	double unit_n_vec[3]; // 単位法線ベクトル
 	double direction[3];  // サブドメインE1からE2の方へ向くベクトル
@@ -311,23 +327,30 @@ void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_
 			}
 
 			for (int k = 0; k < dim; k++)
-				N_e[k] += unit_n_vec[k];
+				Ne[k] += unit_n_vec[k];
 		}
 		for (int i = 0; i < dim; i++)
-			N_e[i] /= (double)(vertex_offset[face + 1] - ref_offset - 2);
-
-			N_matrix[0][0] = N_e[0];	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = N_e[1];		N_matrix[0][4] = 0.0;		N_matrix[0][5] = N_e[2];
-			N_matrix[1][0] = 0.0;       N_matrix[1][1] = N_e[1];	N_matrix[1][2] = 0.0;		N_matrix[1][3] = N_e[0];		N_matrix[1][4] = N_e[2]; 	N_matrix[1][5] = 0.0;
-			N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = N_e[2];	N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = N_e[1]; 	N_matrix[2][5] = N_e[0];	
+			Ne[i] /= (double)(vertex_offset[face + 1] - ref_offset - 2);
 	}
 }
-void calc_Ne_diagonal(int dim , int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*Ne_d)[9]){
-	double Ne[3][6];
+
+void calc_Ne_3x6(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6]){
+	double Ne[3];
 	calc_Ne(option.dim, subdomain_n1, subdomain_n2, face, vertex_offset, node, node_xyz, center_xyz, Ne);
 
-	Ne_d[0][0] = Ne[0][0];	Ne_d[0][1] = 0.0;		Ne_d[0][2] = 0.0;		Ne_d[0][3] = Ne[1][1];		Ne_d[0][4] = 0.0;		Ne_d[0][5] = 0.0;      Ne_d[0][6] = Ne[2][2];		Ne_d[0][7] = 0.0;		Ne_d[0][8] = 0.0; 
-	Ne_d[1][0] = 0.0;       Ne_d[1][1] = Ne[0][0];	Ne_d[1][2] = 0.0;		Ne_d[1][3] = 0.0   ;		Ne_d[1][4] = Ne[1][1]; 	Ne_d[1][5] = 0.0;      Ne_d[1][6] = 0.0;			Ne_d[1][7] = Ne[2][2]; 	Ne_d[1][8] = 0.0;
-	Ne_d[2][0] = 0.0;		Ne_d[2][1] = 0.0;		Ne_d[2][2] = Ne[0][0];	Ne_d[2][3] = 0.0   ;		Ne_d[2][4] = 0.0;	 	Ne_d[2][5] = Ne[1][1]; Ne_d[2][6] = 0.0;	 		Ne_d[2][7] = 0.0;		Ne_d[2][8] = Ne[2][2];	
+	N_matrix[0][0] = Ne[0];	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];		N_matrix[0][4] = 0.0;		N_matrix[0][5] = Ne[2];
+	N_matrix[1][0] = 0.0;   N_matrix[1][1] = Ne[1];   	N_matrix[1][2] = 0.0;		N_matrix[1][3] = Ne[0];		N_matrix[1][4] = Ne[2]; 	N_matrix[1][5] = 0.0;
+	N_matrix[2][0] = 0.0;	N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[2];		N_matrix[2][3] = 0.0 ;		N_matrix[2][4] = Ne[1]; 	N_matrix[2][5] = Ne[0];
+
+}
+
+void calc_Ne_3x9(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[9]){
+	double Ne[3];
+	calc_Ne(option.dim, subdomain_n1, subdomain_n2, face, vertex_offset, node, node_xyz, center_xyz, Ne);
+
+	N_matrix[0][0] = Ne[0]; 	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];			N_matrix[0][4] = 0.0;		N_matrix[0][5] = 0.0;      N_matrix[0][6] = Ne[2];			N_matrix[0][7] = 0.0;		N_matrix[0][8] = 0.0; 
+	N_matrix[1][0] = 0.0;       N_matrix[1][1] = Ne[0];		N_matrix[1][2] = 0.0;		N_matrix[1][3] = 0.0   ;		N_matrix[1][4] = Ne[1]; 	N_matrix[1][5] = 0.0;      N_matrix[1][6] = 0.0;			N_matrix[1][7] = Ne[2]; 	N_matrix[1][8] = 0.0;
+	N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[0];		N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = 0.0;	 	N_matrix[2][5] = Ne[1]; 	N_matrix[2][6] = 0.0;	 		N_matrix[2][7] = 0.0;		N_matrix[2][8] = Ne[2];	
 }
 
 
@@ -345,8 +368,8 @@ double invert3x3Matrix(double matrix_out[3][3],
                        double matrix[3][3])
 {
 
-    const double determinant = calculate3x3MatrixDeterminant(matrix);
-    const double inverse_determinant = 1.0 / determinant;
+    double determinant = calculate3x3MatrixDeterminant(matrix);
+    double inverse_determinant = 1.0 / determinant;
 
     matrix_out[0][0] = (matrix[1][1] * matrix[2][2] - matrix[2][1] * matrix[1][2]) * inverse_determinant;
     matrix_out[0][1] = (matrix[2][1] * matrix[0][2] - matrix[0][1] * matrix[2][2]) * inverse_determinant;

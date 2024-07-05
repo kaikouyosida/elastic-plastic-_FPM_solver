@@ -7,9 +7,9 @@
 extern Global global;
 extern Option option;
 
-static const double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
-                                             {0.0, 1.0, 0.0},
-                                             {0.0, 0.0, 1.0}};
+double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
+                                {0.0, 1.0, 0.0},
+                                {0.0, 0.0, 1.0}};
 
 
 void generateElasticDMatrix(double (*d_matrix)[6]){
@@ -115,6 +115,7 @@ void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_s
 
     inverse_volume_change = 1.0 / calc_3x3matrix_determinant(current_deformation_gradient);
 
+    // 1 / (2 * J) * ([D] : [L] : [B])_ijkl - (sigma_il * delta_jk + sigma_jl * delta_ik) を計算
     for (int i = 0; i < 3; i++)
         for (int j = 0; j < 3; j++)
             for (int k = 0; k < 3; k++)

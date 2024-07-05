@@ -3,6 +3,7 @@
 #include<math.h>
 #include"type.h"
 #include"internal_force.h"
+#include"vector.h"
 #include"d_matrix.h"
 #include"b_matrix.h"
 #include"matrix.h"
@@ -16,15 +17,31 @@
 extern Global global;
 extern Option option;
 
+char FILE_name[128];
+FILE *fp_debug;
+
+double temp;
+
 void update_field_and_internal_forces(){
 
-    FILE *fp_debug;
-    char FILE_name[128];
-    //fp_debug = fopen("debug_stress.dat", "w");
-    //fprintf(fp_debug, "stress      /        σxx     /       σyy     /       σzz     /       σxy     /       σyz     /       σzx     \n");
+    #if 0
+    fp_debug = fopen("debug_stress.dat", "w");
+    fprintf(fp_debug, "stress      /        σxx     /       σyy     /       σzz     /       σxy     /       σyz     /       σzx     \n");
     
-    double subdomain_internal_force[20][3];
-    double d_matrix[6][6];          //Dマトリクス
+    FILE *fp_debug_du;
+    if((fp_debug_du = fopen("Data_Files_Output/Output_displacement.dat",  "r")) == NULL){
+        printf("File is not enough\n");
+        exit(-1);
+    }
+    fscanf(fp_debug_du, "%*[^\n]\n");
+    for(int i = 0; i < global.subdomain.N_point; i++)
+        fscanf(fp_debug_du,  "%*d %lf %lf %lf\n", &global.subdomain.displacement_increment[i][0], &global.subdomain.displacement_increment[i][1], &global.subdomain.displacement_increment[i][2]);
+    //for(int i = 0; i < global.subdomain.N_point; i++)
+        //printf("%+15.14e %+15.14e %+15.14e\n", global.subdomain.displacement_increment[i][0], global.subdomain.displacement_increment[i][1], global.subdomain.displacement_increment[i][2]);
+    #endif
+
+    double subdomain_internal_force[20][3];                     //サブドメイン単位での内力ベクトル
+    double d_matrix[6][6];                                      //Dマトリクス
     double inverse_relative_deformation_gradient[3][3];         //相対変形勾配テンソルの逆テンソル
     double relative_deformation_gradient[3][3];                 //相対変形勾配テンソル
     double elastic_strain_tensor[3][3];                         //弾性ひずみテンソル
@@ -34,16 +51,10 @@ void update_field_and_internal_forces(){
     double trial_elastic_left_cauchy_green_deformations[3][3];  //試行弾性左コーシーグリーンテンソル
     double trial_relative_stresses[6];                          //試行相対応力
     double b_t_matrix[60][6];                                   //Bマトリクスの転置
-    double *latest_point_XYZ;                                   //現配置のポイント配置
+    double *current_point_XYZ;                                   //現配置のポイント配置
     double **G;                                                 //(u = {G}uE）につかうGマトリクス
     int support[60];                                             //サポートドメイン内のポイント数
     double displacement_increment[3];                           //サポートの変位増分
-    double elastic_strains[6];                                  //弾性ひずみ
-    double current_elastic_strains[6];                          //現配置の弾性ひずみ
-    double trial_elastic_strains[6];                            //試行弾性ひずみ
-    double current_stresses[6];                                 //現配置の応力
-    double back_stresses[6];                                    //背応力
-    double current_back_stresses[6];                            //現配置の背応力
     double **all_stress;                                        //各サブドメインにおける応力
     double trial_relative_equivalent_stress;
     double factor;
@@ -56,28 +67,14 @@ void update_field_and_internal_forces(){
             global.subdomain.global_internal_force[i][j] = 0.;
         }
     }
-    #if 0
-    FILE *fp_debug_du;
-    if((fp_debug_du = fopen("Data_Files_Output/Output_displacement.dat",  "r")) == NULL){
-        printf("File is not enough\n");
-        exit(-1);
-    }
-    fscanf(fp_debug_du, "%*[^\n]\n");
-    for(int i = 0; i < global.subdomain.N_point; i++)
-        fscanf(fp_debug_du,  "%*d %lf %lf %lf\n", &global.subdomain.displacement_increment[i][0], &global.subdomain.displacement_increment[i][1], &global.subdomain.displacement_increment[i][2]);
-    //for(int i = 0; i < global.subdomain.N_point; i++)
-        //printf("%+15.14e %+15.14e %+15.14e\n", global.subdomain.displacement_increment[i][0], global.subdomain.displacement_increment[i][1], global.subdomain.displacement_increment[i][2]);
-        
-    #endif
-
+    
+    //各サブドメインで内力ベクトルを作成
     for(int point = 0; point < global.subdomain.N_point; point++){
        
-        double kinematic_hardening_fractions = global.material.kinematic_hardening_fractions;
         int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
-
         for(int i = 0 ; i < N_support; i++)
-            support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
-
+                    support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
+          
         //サブドメインの内力ベクトルをゼロ処理
         for(int i = 0; i < N_support + 1; i++){
             for(int j = 0; j < option.dim; j++){
@@ -85,132 +82,81 @@ void update_field_and_internal_forces(){
             }
         }
 
-        //配列の時数を一つ落とす
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
+        
+        for(int i = 0; i < option.dim; i++){
+            for(int j = 0; j < option.dim; j++){
                 deformation_gradients[i][j] = global.subdomain.deformation_gradients[i][j][point];
                 current_deformation_gradients[i][j] = global.subdomain.current_deformation_gradients[i][j][point];           
             }
+        
         }
-        for(int i = 0; i < 6; i++){
-            elastic_strains[i] = global.subdomain.elastic_strains[point][i];
-            current_elastic_strains[i] = global.subdomain.current_elastic_strains[point][i];
-            trial_elastic_strains[i] = global.subdomain.trial_elastic_strains[point][i];
-            current_stresses[i] = global.subdomain.current_stresses[point][i];
-            back_stresses[i] = global.subdomain.back_stresses[point][i];
-            current_back_stresses[i] = global.subdomain.current_back_stresses[point][i];
-        }
+        double *kinematic_hardening_fractions = &global.material.kinematic_hardening_fractions;
         double *equivalent_plastic_strain = &global.subdomain.equivalent_plastic_strains[point];
         double *equivalent_plastic_strain_increment = &global.subdomain.equivalent_plastic_strain_increments[point];
         double *yield_stress = &global.subdomain.yield_stresses[point];
         double *current_yield_stress = &global.subdomain.current_yield_stresses[point];
 
-        generate_linear_b_matrix(b_t_matrix, point);
-        #if 0
-        double varepsiron[6];
-        for(int i = 0; i < 6; i++){
-            double varepsiron_i = 0.;
-            for(int j = 0; j < N_support; j++){
-                for(int k = 0 ; k < 3; k++){
-                    varepsiron_i += b_t_matrix[3*(j + 1)+k][i] * global.subdomain.displacement_increment[support[j]][k];
-                }
-            }
-            for(int j = 0; j < 3; j++)
-                varepsiron_i += b_t_matrix[j][i] * global.subdomain.displacement_increment[point][j];
-            varepsiron[i] = varepsiron_i;
-            printf("%+8.7e  ", varepsiron[i]);
-        }
-        printf("\n");
-        #endif
-        #if 0
-        for(int i = 0; i < 6; i++){
-            for(int j = 0 ;j < 3*(N_support+1); j++){
-                printf("%+4.3e ", b_t_matrix[j][i]);
-            }
-            printf("\n");
-        }
-        printf("\n\n");
+        double *elastic_strains = global.subdomain.elastic_strains[point];
+        double *current_elastic_strains = global.subdomain.current_elastic_strains[point];
+        double *trial_elastic_strains = global.subdomain.trial_elastic_strains[point];
+        double *current_stresses = global.subdomain.current_stresses[point];
+        double *back_stresses = global.subdomain.back_stresses[point];
+        double *current_back_stresses = global.subdomain.current_back_stresses[point];
 
-        for(int j = 0 ;j < 3; j++){
-                printf("%+4.3e ", global.subdomain.displacement_increment[point][j]);
-        }
-        for(int i = 0; i < N_support; i++){
-            for(int j = 0 ;j < 3; j++){
-                printf("%+4.3e ", global.subdomain.displacement_increment[support[i]][j]);
-            }
-        }
-        printf("\n\n");
-        //exit(-1);
-        #endif
+        //Bマトリクスを作成
+        generate_linear_b_matrix(b_t_matrix, point);
         
+        //dマトリクスを作成
         generateElasticDMatrix(d_matrix);
         
-        //相対変形勾配テンソルを計算。dF=(I-d(du)/d(x+u+du))^-1//
-        identify3x3Matrix(inverse_relative_deformation_gradient);
-        
-        if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
             printf("Error: Latest_point_XYZ's memory is not enough\n");
             exit(-1);
         }
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < option.dim; j++){
-                latest_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                        + global.subdomain.displacement[i][j]
-                        + global.subdomain.displacement_increment[i][j];
+                current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                                                    + global.subdomain.displacement[i][j]
+                                                    + global.subdomain.displacement_increment[i][j];
             }
         }
 
-        G = matrix(9, option.dim * (N_support + 1));
-        calc_G(option.dim, point, latest_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+        //変位勾配のマトリクスを作成（動的に確保）
+        G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
+        calc_G(option.dim, point, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
         
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
+        //現配置の変形勾配テンソルの逆行列を計算
+        //相対変形勾配テンソルを計算。dF=(I-d(du)/d(x+u+du))^-1//
+        identify3x3Matrix(inverse_relative_deformation_gradient);
+
+        for(int i = 0; i < option.dim; i++){
+            for(int j = 0; j < option.dim; j++){
                 for(int k = 0; k < N_support; k++){
-                    inverse_relative_deformation_gradient[i][j] -= G[3 * i + j][3 * (k + 1) + i] * global.subdomain.displacement_increment[support[k]][i];
+                    inverse_relative_deformation_gradient[i][j] -= G[option.dim * i + j][option.dim * (k + 1) + i] * global.subdomain.displacement_increment[support[k]][i];
                 }
             }
-            for(int j = 0; j < 3; j++){
-                inverse_relative_deformation_gradient[i][j] -= G[3 * i + j][i] * global.subdomain.displacement_increment[point][i];
+            for(int j = 0; j < option.dim; j++){
+                inverse_relative_deformation_gradient[i][j] -= G[option.dim * i + j][i] * global.subdomain.displacement_increment[point][i];
             }
         }
         free_matrix(G);
-        free(latest_point_XYZ);
+        free(current_point_XYZ);
+
+        //変形勾配テンソル（初期配置に対してのテンソル）[F] = [dF] * [F]
         invert3x3Matrix(relative_deformation_gradient, inverse_relative_deformation_gradient);
-        #if 0
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                if(i == j) 
-                    relative_deformation_gradient[i][j] -= 1.0;
-                printf("%+15.14e ", relative_deformation_gradient[i][j]);
+        for(int i = 0; i < option.dim; i++)
+            for (int j = 0; j < option.dim; j++){
+
+                double deformation_gradient_i_j = 0.0;
+
+                for (int k = 0; k < option.dim; k++)
+                    deformation_gradient_i_j
+                        += relative_deformation_gradient[i][k]
+                        *  deformation_gradients[k][j];
+
+                current_deformation_gradients[i][j]
+                    = deformation_gradient_i_j;
             }
-            printf("\n");
-        }
-        printf("\n");
-        #endif
-
-        //変形勾配テンソル（初期配置に対してのテンソル）
-        for (int i = 0; i < 3; i++)
-                    for (int j = 0; j < 3; j++)
-                    {
-                        double deformation_gradient_i_j = 0.0;
-
-                        for (int k = 0; k < 3; k++)
-                            deformation_gradient_i_j
-                                += relative_deformation_gradient[i][k]
-                                *  deformation_gradients[k][j];
-
-                        current_deformation_gradients[i][j]
-                            = deformation_gradient_i_j;
-                    }
-        #if 0
-        for(int i = 0; i < 3; i++){
-            for(int j = 0;  j < 3; j++){
-                printf("%+15.14e    ", current_deformation_gradients[i][j]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-        #endif
               
         //弾性左コーシーグリーンテンソルの計算([B]^e = exp(2 * {epsilon}^e))
         elastic_strain_tensor[0][0] = 2.0 * elastic_strains[0];
@@ -224,36 +170,18 @@ void update_field_and_internal_forces(){
         elastic_strain_tensor[2][2] = 2.0 * elastic_strains[2];
         
         calculateTensorExponent(elastic_left_cauchy_green_deformations, elastic_strain_tensor);
-        #if 0
-        double A[3][3];
-        double B[3][3];
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                A[i][j] = 0.;
-            }
-        }
-        A[0][0] = 1.0; A[1][1] = 1.0; A[2][2] = 9.0 / 4.0;
-        calculateTensorExponent(B, A);
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                printf("%+7.6e  ", B[i][j]);
-            }
-            printf("\n");
-        }
-        exit(-1);
-        #endif
 
         //試行弾性左コーシーグリーンテンソルの計算 [B]^trial = [dF] * [B]^e * [dF]^T 
-        for (int i = 0; i < 3; i++)
-                    for (int j = 0; j < 3; j++)
+        for (int i = 0; i < option.dim; i++)
+                    for (int j = 0; j < option.dim; j++)
                     {
                         double left_cauchy_green_deformation_i_j = 0.0;
 
-                        for (int k = 0; k < 3; k++)
+                        for (int k = 0; k < option.dim; k++)
                         {
                             double left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l = 0.0;
 
-                            for (int l = 0; l < 3; l++)
+                            for (int l = 0; l < option.dim; l++)
                                 left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l
                                     += elastic_left_cauchy_green_deformations[k][l]
                                     *  relative_deformation_gradient[j][l];
@@ -269,34 +197,7 @@ void update_field_and_internal_forces(){
         
         //試行弾性ひずみを計算（ {epsilon}^trial = 1/2 * ln([B]^trial)　
         calculateTensorLogarithm(elastic_strain_tensor, trial_elastic_left_cauchy_green_deformations);
-        #if 0
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                printf("%+6.5e ", elastic_strain_tensor[i][j]);
-            }
-            printf("\n");
-        }
-        printf("\n");
-        #endif
-
-        #if 0
-        double A[3][3];
-        double B[3][3];
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                A[i][j] = 0.;
-            }
-        }
-        A[0][0] = 1.0; A[1][1] = 1.0; A[2][2] = 9.0 / 4.0;
-        calculateTensorLogarithm(B, A);
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
-                printf("%+7.6e  ", B[i][j]);
-            }
-            printf("\n");
-        }
-        exit(-1);
-        #endif
+    
         current_elastic_strains[0] = 0.5 * elastic_strain_tensor[0][0];
         current_elastic_strains[1] = 0.5 * elastic_strain_tensor[1][1];
         current_elastic_strains[2] = 0.5 * elastic_strain_tensor[2][2];
@@ -329,6 +230,7 @@ void update_field_and_internal_forces(){
         for (int i = 0; i < 6; i++)
                 trial_relative_stresses[i]
                     = current_stresses[i] - back_stresses[i];
+
         //試行相対相当応力の計算(sigma^trial_e)
         trial_relative_equivalent_stress
                 = calc_equivalent_stress(trial_relative_stresses);
@@ -381,11 +283,11 @@ void update_field_and_internal_forces(){
                 //最終的な降伏応力
                 *current_yield_stress
                     = (*yield_stress)
-                    + (1.0 - kinematic_hardening_fractions)
+                    + (1.0 - *kinematic_hardening_fractions)
                     * hardening_stress_increment;
                 //最終的な背応力の計算
                 factor
-                    = kinematic_hardening_fractions
+                    = *kinematic_hardening_fractions
                     * hardening_stress_increment
                     / trial_relative_equivalent_stress;
                 for (int i = 0; i < 6; i++)
@@ -415,164 +317,25 @@ void update_field_and_internal_forces(){
             //printf("%5d  %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e %+15.14e\n", point, current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
             //printf("inverse = %+15.14e\n", inverse_volume_change);
 
-            #if 0
-            fp_debug = fopen("Data_Files_Output/Output_stress.dat", "r");
-            if(fp_debug == NULL){
-                printf("File is not open\n");
-                exit(-1);
-            }
-            fscanf(fp_debug, "%*[^\n]\n");
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                for(int j = 0; j < option.dim; j++){
-                    if(i == point){
-                        fscanf(fp_debug,"%*d %lf %lf %lf %lf %lf %lf\n", &current_stresses[0], &current_stresses[1], &current_stresses[2], &current_stresses[3], &current_stresses[4], &current_stresses[5]);
-                    }else{
-                        fscanf(fp_debug, "\n");
-                    }
-                }
-            }
-            fclose(fp_debug);
-            #endif
-            //printf("%lf %lf %lf %lf %lf %lf\n", current_stresses[0], current_stresses[1], current_stresses[2], current_stresses[3], current_stresses[4], current_stresses[5]);
-            
-            double volume = calc_subdomain_volume(point);
-            //printf("%+15.14e\n",  volume);
-            #if 1
-            //内力ベクトル一項目を計算（[B]^T * {sigma} * dV）
-            for(int i = 0; i < N_support + 1; i++){
-                for(int j = 0; j < option.dim; j++){
-                    double force_j = 0.;
-                    for(int k = 0; k < 6; k++)
-                        force_j += b_t_matrix[option.dim * i + j][k] * current_stresses[k];
-                    
-                    subdomain_internal_force[i][j] = force_j * volume;
-                }
-            }
-
-            //各サブドメインで内力ベクトルをアセンブル
-            for(int i = 0; i < N_support; i++){
-                for(int j = 0; j < option.dim; j++){
-                    global.subdomain.global_internal_force[support[i]][j] += subdomain_internal_force[i + 1][j];
-                }
-            }
-            for(int i = 0; i < option.dim; i++)
-                global.subdomain.global_internal_force[point][i] += subdomain_internal_force[0][i];
-            #endif
-
-            //各サブドメインにおける応力とひずみを記録（ペナルティ項の計算に用いる）
+            //各サブドメインにおける応力とひずみを記録
             for(int i = 0; i < 6; i++){
                 all_stress[point][i] = current_stresses[i];
-                global.subdomain.current_stresses[point][i] = current_stresses[i];
-                global.subdomain.trial_elastic_strains[point][i] = trial_elastic_strains[i];
-                global.subdomain.current_elastic_strains[point][i] = current_elastic_strains[i];
             }
-            for(int i = 0; i < 3; i++){
-                for(int j = 0; j < 3; j++){
+            for(int i = 0; i < option.dim; i++){
+                for(int j = 0; j < option.dim; j++){
                     global.subdomain.current_deformation_gradients[i][j][point] = current_deformation_gradients[i][j];
                 }
             }
     }
-    #if 0
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        printf("%5d    ", i);
-        for(int j = 0; j < 3; j++){
-            printf("%+15.14e  ", global.subdomain.global_internal_force[i][j]);
-        }
-        printf("\n");
-    }
-    #endif 
-    //fclose(fp_debug);
     
-    #if 0
-            global.count++;
-            snprintf(FILE_name, 128,"debug_for_internal/1st_internal_vector/global_internal_vector%d.dat", global.count);
-            fp_debug = fopen(FILE_name,"w");
-            
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                fprintf(fp_debug,"%5d    ", i);
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fclose(fp_debug);
-    #endif 
+    //内力ベクトルの体積積分項を計算
+    calc_internal_force_volume(all_stress);
     
     //内力ベクトルのペナルティ項を計算
-    calc_internal_force_penalty(all_stress, 1);
-    #if  0
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        printf("%5d    ", i);
-        for(int j = 0; j < 3; j++){
-            printf("%+15.14e  ", global.subdomain.global_internal_force[i][j]);
-        }
-        printf("\n");
-    }
-    #endif 
-    #if 0
-            global.count++;
-            snprintf(FILE_name, 128,"debug_for_internal/2nd_internal_vector/global_internal_vector%d.dat", global.count);
-            fp_debug = fopen(FILE_name,"w");
-            
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                fprintf(fp_debug,"%5d    ", i);
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fclose(fp_debug);
-    #endif
-    #if 0
-    FILE *fp_debug_du;
-    if((fp_debug_du = fopen("Data_Files_Output/Output_displacement.dat",  "r")) == NULL){
-        printf("File is not enough\n");
-        exit(-1);
-    }
-    fscanf(fp_debug_du, "%*[^\n]\n");
-    for(int i = 0; i < global.subdomain.N_point; i++)
-        fscanf(fp_debug_du,  "%*d %lf %lf %lf\n", &global.subdomain.displacement_increment[i][0], &global.subdomain.displacement_increment[i][1], &global.subdomain.displacement_increment[i][2]);
-    //for(int i = 0; i < global.subdomain.N_point; i++)
-        //printf("%+15.14e %+15.14e %+15.14e\n", global.subdomain.displacement_increment[i][0], global.subdomain.displacement_increment[i][1], global.subdomain.displacement_increment[i][2]);
-    #endif     
-    calc_internal_force_penalty_stabilization(2);
-    #if 0
-            global.count++;
-            snprintf(FILE_name, 128,"debug_for_internal/3rd_internal_vector/global_internal_vector%d.dat", global.count);
-            fp_debug = fopen(FILE_name,"w");
-            
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                fprintf(fp_debug,"%5d    ", i);
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fclose(fp_debug);
-    #endif
-    #if  0
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < 3; j++){
-            printf("%5d %+15.14e\n", 3*i+j, global.subdomain.global_internal_force[i][j]);
-        }
-    }
-    #endif
-    #if 0
-            global.count++;
-            snprintf(FILE_name, 128,"debug_for_internal/global_internal_vector%d.dat", global.count);
-            fp_debug = fopen(FILE_name,"w");
-            
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                fprintf(fp_debug,"%5d    ", i);
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_internal_force[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fclose(fp_debug);
-    #endif
-    //fclose(fp_debug_du);
-    //exit(-1);
+    calc_internal_force_penalty(all_stress);
+    
+    //内力ベクトルの安定化項を計算
+    calc_internal_force_penalty_stabilization();
 
     free_matrix(all_stress);
 }
@@ -621,16 +384,40 @@ double calc_equivalent_plastic_strain_increment(double trial_relative_equivalent
     return nan("");
 }
 
-void zero_fill_displacement_increments(){
+
+void calc_internal_force_volume(double **all_stress){
+    double subdomain_internal_force[60];            //サブドメイン単位での内力ベクトル
+    int support[60];                                //サポート番号
+    double b_t_matrix[60][6];                       //bマトリクス
+
     for(int point = 0; point < global.subdomain.N_point; point++){
-        for(int i  = 0; i < option.dim; i++){
-            global.subdomain.displacement_increment[point][i] = 0.;
+        int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
+        double volume = calc_subdomain_volume(point);
+        for(int i = 0 ; i < N_support; i++)
+            support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
+        
+        //Bマトリクスを作成
+        generate_linear_b_matrix(b_t_matrix, point);
+
+        //内力ベクトル一項目を計算（[B]^T * {sigma} * dV）
+        for(int i = 0; i < N_support + 1; i++){
+            for(int j = 0; j < option.dim; j++){
+                double force_j = 0.;
+                for(int k = 0; k < 6; k++)
+                    force_j += b_t_matrix[option.dim * i + j][k] * all_stress[point][k];
+                
+                subdomain_internal_force[option.dim * i + j] = force_j * volume;
+            }
         }
+
+        //各サブドメインで内力ベクトルをアセンブル
+        assemble_vector(point, global.subdomain.global_internal_force, subdomain_internal_force);
     }
 }
 
-
-void calc_internal_force_penalty(double **all_stress,int N_qu){
+void calc_internal_force_penalty(double **all_stress){
+    
+    int N_qu = 1;
     double X[27];
     double w[27];                                               //ガウス求積に使う正規化座標と重み関数
     double xyz[3];                                              //求積点の座標
@@ -702,7 +489,7 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                 calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face + 1], point_XYZ, global.subdomain.support_offset, N2T);
                 
                 //法線ベクトルを計算
-                calc_Ne(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1]
+                calc_Ne_3x6(global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1]
                         , global.subdomain.shared_face[face], global.subdomain.vertex_offset, global.subdomain.node, node_XYZ, point_XYZ, Ne);
             
                 //形状関数と法線ベクトルの積を計算
@@ -719,7 +506,8 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                 for(int i = 0; i < option.dim * (N2_support + 1); i++){
                     for(int j = 0; j < 6; j++){
                         double N2Tne_ij = 0.;
-                        for(int k = 0; k < option.dim; k++) N2Tne_ij += N2T[i][k] * Ne[k][j];
+                        for(int k = 0; k < option.dim; k++) 
+                            N2Tne_ij += N2T[i][k] * Ne[k][j];
                         N2Tne[i][j] = N2Tne_ij;
                     }
                 }
@@ -733,16 +521,19 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
                     }
                     subdomain_internal_force[i] = subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
+
                 for(int i = 0; i < N1_support; i++){
                     for(int j = 0; j < option.dim; j++){
                         global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]] + i]][j]
                         += subdomain_internal_force[option.dim * (i + 1) + j];   
                     }
                 }
+
                 for(int i = 0 ; i < option.dim; i++)
                     global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face]][i]
                         += subdomain_internal_force[i];
 
+    
                 for(int i = 0; i < option.dim * (N2_support + 1); i++){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < 6; j++){
@@ -771,42 +562,42 @@ void calc_internal_force_penalty(double **all_stress,int N_qu){
     free(point_XYZ);
 }
 
-void calc_internal_force_penalty_stabilization(int N_qu){
+void calc_internal_force_penalty_stabilization(){
+    int N_qu = 2;                                               //積分点数
     double X[27];
     double w[27];                                               //ガウス求積に使う正規化座標と重み関数
     double xyz[3];                                              //求積点の座標
     double u1[3], u2[3];                                        //試行関数
     double N1T[60][3], N2T[60][3];                              //形状関数の転置
-    double N1Tne[60][6], N2Tne[60][6];                          //形状関数と法線ベクトルの積
     double subdomain_internal_force[60];                        //サブドメインごとの内力ベクトル
     int face_node[4];                                           //面を構成する節点
     double face_node_XYZ[4][3];                                 //面を構成する節点の座標
     double jacobian;                                            //ヤコビアン
-    double *point_XYZ;                                          //ポイントの現在の座標
-    double *node_XYZ;                                           //節点の現在の座標
+    double *current_point_XYZ;                                  //ポイントの現在の座標
+    double *current_node_XYZ;                                   //節点の現在の座標
     double he;                                                  //ポイント間の距離
     double eta = global.material.penalty;                       //ペナルティパラメータ
 
-    //形状関数を計算するためのpoint, node現在座標を計算
-    if((point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+    //形状関数を計算するためのpoint, nodeにおける現配置の座標を計算
+    if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:point_XYZ's memory is not enough\n");
         exit(-1);
     }
-    if((node_XYZ = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){
+    if((current_node_XYZ = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){
         printf("Error:node_XYZ's memory is not enough\n");
         exit(-1);
     }
 
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
-            point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j];
+            current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j];
                                         + global.subdomain.displacement[i][j]
                                         + global.subdomain.displacement_increment[i][j];
         }
     }
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim; j++){
-            node_XYZ[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j];
+            current_node_XYZ[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j];
                                         + global.subdomain.nodal_displacements[i][j]
                                         + global.subdomain.nodal_displacement_increments[i][j];
         }
@@ -815,10 +606,9 @@ void calc_internal_force_penalty_stabilization(int N_qu){
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
-        //jacobian = calc_surface_area(global.subdomain.shared_face[face]) / 4.0;
-    
-        he = distance(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1], point_XYZ);
 
+        he = distance(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1], current_point_XYZ);
+        
         int N1_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face] + 1]
                         - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]];
         int N2_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1] + 1] 
@@ -829,11 +619,13 @@ void calc_internal_force_penalty_stabilization(int N_qu){
         
         for(int i = 0; i < 4; i++)
             for(int j = 0; j < option.dim; j++)
-                face_node_XYZ[i][j] = node_XYZ[option.dim * face_node[i] + j];   
+                face_node_XYZ[i][j] = current_node_XYZ[option.dim * face_node[i] + j];   
 
         for(int s = 0; s < N_qu; s++){
             for(int t = 0; t < N_qu; t++){
-                jacobian = calc_area_change(global.subdomain.shared_face[face], s,t,X);
+                jacobian = calc_area_change(global.subdomain.shared_face[face], s, t, X);
+
+                //正規化座標から物理座標へマッピング（ x_i=1/4*(1-ξ*ξ_i)*(1-η*η_i)*x_i )
                 for(int i = 0; i < option.dim; i++)
                     xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                             + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]
@@ -841,66 +633,50 @@ void calc_internal_force_penalty_stabilization(int N_qu){
                             + 0.25 * (1.0 + X[s]) * (1.0 - X[t]) * face_node_XYZ[3][i];
                 
                 //形状関数の転置を計算
-                calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face], point_XYZ, global.subdomain.support_offset, N1T);
-                calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face + 1], point_XYZ, global.subdomain.support_offset, N2T);
+                calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face], current_point_XYZ, global.subdomain.support_offset, N1T);
+                calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face + 1], current_point_XYZ, global.subdomain.support_offset, N2T);
 
                 //試行関数を計算
-                trial_u(xyz, global.subdomain.pair_point_ib[2 * face], point_XYZ, u1);
-                trial_u(xyz, global.subdomain.pair_point_ib[2 * face + 1], point_XYZ, u2);
+                trial_u(xyz, global.subdomain.pair_point_ib[2 * face], current_point_XYZ, u1);
+                trial_u(xyz, global.subdomain.pair_point_ib[2 * face + 1], current_point_XYZ, u2);
 
                 for(int i = 0; i < option.dim * (N1_support + 1); i++){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < option.dim; j++){
                         subdomain_internal_force_i += N1T[i][j] * (u1[j] - u2[j]);
                     }
-                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                    subdomain_internal_force[i] = eta / he * subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
-                for(int i = 0; i < N1_support; i++){
-                    for(int j = 0; j < option.dim; j++){
-                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face]] + i]][j]
-                        += eta / he * subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
-                    }
-                }
-                for(int i = 0 ; i < option.dim; i++)
-                    global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face]][i]
-                        +=  eta / he * subdomain_internal_force[i] * jacobian * w[s] * w[t];
+                
+                assemble_vector(global.subdomain.pair_point_ib[2 * face], global.subdomain.global_internal_force, subdomain_internal_force);
 
                 for(int i = 0; i < option.dim * (N2_support + 1); i++){
                     double subdomain_internal_force_i = 0.;
                     for(int j = 0; j < option.dim; j++){
                         subdomain_internal_force_i += -N2T[i][j] * (u1[j] - u2[j]);
                     }
-                    subdomain_internal_force[i] = subdomain_internal_force_i;
+                    subdomain_internal_force[i] = eta / he * subdomain_internal_force_i * jacobian * w[s] * w[t];
                 }
-                for(int i = 0; i < N2_support; i++){
-                    for(int j = 0; j < option.dim; j++){
-                        global.subdomain.global_internal_force[global.subdomain.support[global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + 1]] + i]][j]
-                        += eta / he * subdomain_internal_force[option.dim * (i + 1) + j] * jacobian * w[s] * w[t];   
-                    }
-                }
-                for(int i = 0 ; i < option.dim; i++)
-                    global.subdomain.global_internal_force[global.subdomain.pair_point_ib[2 * face + 1]][i]
-                        +=  eta / he * subdomain_internal_force[i] * jacobian * w[s] * w[t];
+
+                assemble_vector(global.subdomain.pair_point_ib[2 * face + 1], global.subdomain.global_internal_force, subdomain_internal_force);
             }
         }
     }
 
-    free(node_XYZ);
-    free(point_XYZ);
+    free(current_node_XYZ);
+    free(current_point_XYZ);
 }
 
 double calc_global_force_residual_norm(int iteration_step){
     double global_f_norm = 0., global_r_norm = 0.;
-    char FILE_name[128];
-    FILE *fp_debug;
 
     for(int i = 0; i < global.subdomain.N_point; i++)
         for(int j = 0; j < option.dim; j++)
-            global.subdomain.global_residual_force[option.dim * i + j]
+            global.subdomain.global_residual_force[i][j]
                  =  global.subdomain.global_external_force[i][j] - global.subdomain.global_internal_force[i][j];
     
     
-            ImposeDirichretResidual(iteration_step);
+    ImposeDirichretResidual(iteration_step);
     
     #if 0
             snprintf(FILE_name, 128,"debug_for_residual/residual_vector%d.dat", iteration_step);
@@ -914,72 +690,98 @@ double calc_global_force_residual_norm(int iteration_step){
             fclose(fp_debug);
     #endif
     
-    //ノルムの計算
-    for(int i = 0; i < global.subdomain.N_point; i++)
-        for(int j = 0; j < option.dim; j++){
-            global_f_norm += global.subdomain.global_external_force[i][j] * global.subdomain.global_external_force[i][j];
-            global_r_norm += global.subdomain.global_residual_force[option.dim * i + j] * global.subdomain.global_residual_force[option.dim * i + j];
-        }
-    global_f_norm = sqrt(global_f_norm);
-    global_r_norm = sqrt(global_r_norm);
- 
-    if(iteration_step == 0){
-        global.temp = global_r_norm;
-        //printf("%+15.14e\n", global.temp);
-    }
+    //外力ベクトルと残差ベクトルのノルムを計算
+    global_f_norm = norm_for_mat(global.subdomain.global_external_force, global.subdomain.N_point, option.dim);
+    global_r_norm = norm_for_mat(global.subdomain.global_residual_force, global.subdomain.N_point, option.dim);
+
+    if(iteration_step == 0)
+        temp = global_r_norm;
 
     if(global_f_norm == 0){
         //printf("norm: %+15.14e\n", global.temp-0.25);
-        return global_r_norm / global.temp;
+        return global_r_norm / temp;
         
     }else{
-        //printf("status\n");
+        //printf("%+15.14e %+15.14e\n", global_f_norm, global_r_norm);
         return global_r_norm / global_f_norm;
     }
 }
-double calc_du_norm(){
-    
-}
-void update_nodal_displacement_increment(double *latest_point_xyz){
-    double *latest_node_xyz;
-    double u_h[3];
-    #if 0
-    for(int node = 0; node < global.subdomain.N_node; node++){
-        int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
-        for(int i = 0; i < option.dim; i++){
-            for(int j = 0; j < N_ar_point; j++){
-                global.subdomain.nodal_displacement_increments[node][i]
-                    += global.subdomain.displacement_increment[global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + j]][i] / (double)N_ar_point;
-            }
-        }
+
+void update_nodal_displacement_increment(double *current_point_xyz){
+    double *current_node_xyz;            //現在の頂点座標
+    double u_h[3];                      //変位増分のベクトル
+    double u_plus[3];                   //面を共有する2*face側の形状関数で構築した変位増分ベクトル
+    double u_minus[3];                  //面を共有する2*face+1側の形状関数で構築した変位増分ベクトル
+    double node_xyz[3];                 //頂点座標ベクトル
+
+    for(int i = 0; i < 3; i++){
+        u_h[i] = 0.;
+        u_plus[i] = 0;
+        u_minus[i] = 0;
     }
-    #endif
-    #if 1
-    if((latest_node_xyz = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){
-        printf("latest_point_xyz's is not neough\n");
+        
+    if((current_node_xyz = (double *)calloc(option.dim * global.subdomain.N_node, sizeof(double))) == NULL){
+        printf("current_node_xyz's is not neough\n");
         exit(-1);
     }
+
     for(int i = 0; i < global.subdomain.N_node; i++){
         for(int j = 0; j < option.dim; j++){
-            latest_node_xyz[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j]
+            current_node_xyz[option.dim * i + j] = global.subdomain.node_XYZ[option.dim * i + j]
                                                 + global.subdomain.nodal_displacements[i][j]
                                                 + global.subdomain.nodal_displacement_increments[i][j];
         }
     }
+    
     for(int node = 0; node < global.subdomain.N_node; node++){
         int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+
+        for(int i = 0; i < option.dim; i++)
+            node_xyz[i] = current_node_xyz[option.dim * node + i];
+        
         for(int i = 0; i < N_ar_point; i++){
-            trial_u(latest_node_xyz, global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i], latest_point_xyz, u_h);
+            trial_u(node_xyz, global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i], current_point_xyz, u_h);
             for(int j = 0; j < option.dim; j++){
-                global.subdomain.nodal_displacement_increments[node][j] += u_h[j];
+                global.subdomain.nodal_displacement_increments[node][j] += u_h[j] / (double)N_ar_point;
             }
         }
-        for(int i = 0; i < option.dim; i++)
-            global.subdomain.nodal_displacement_increments[node][i] /= (double)N_ar_point;
     }
-    free(latest_node_xyz);
-    #endif
+    for(int face = 0; face < global.subdomain.N_int_boundary; face++){ 
+        //６面体の場合、面の頂点数は４
+        for(int i = 0; i < 4; i++){
+            for(int j = 0; j < option.dim; j++)
+                node_xyz[j] = current_node_xyz[option.dim * global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.shared_face[face]] + i] + j];
+            trial_u(node_xyz, global.subdomain.pair_point_ib[2 * face], current_point_xyz, u_plus);
+            trial_u(node_xyz, global.subdomain.pair_point_ib[2 * face + 1], current_point_xyz, u_minus);
+            for(int j = 0; j < option.dim; j++){
+                global.subdomain.nodal_displacement_increment_plus[4 * face + i][j] += u_plus[j];
+                global.subdomain.nodal_displacement_increment_minus[4 * face + i][j] += u_minus[j];
+            }      
+        }
+    }
+    //for(int i = 0; i < global.subdomain.N_int_boundary*4; i++){
+        //for(int j = 0; j < option.dim; j++){
+            //printf("%+15.14e %+15.14e\n", global.subdomain.nodal_displacement_increment_plus[i][j], global.subdomain.nodal_displacement_increment_minus[i][j]);
+        //}
+    //}
+    free(current_node_xyz);
 
+}
+
+void update_point_displaecment_increment(double *current_point_xyz, double *du){
+    int count = 0;
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j = 0; j < option.dim; j++){
+            int flag = 0;  
+            for(int k = 0; k < global.bc.N_D_DoF; k++)
+                if(option.dim * i + j == global.bc.fixed_dof[k]) flag++;
+            if(flag == 0){
+                global.subdomain.displacement_increment[i][j] += du[count];
+                count++;
+            }
+             
+        }
+    }
 }
 
 void increment_field(){
@@ -1021,4 +823,14 @@ void increment_field(){
             global.subdomain.nodal_displacement_increments[node][i] = 0.;
         }
     }
+
+    for (int i = 0; i < 4 * global.subdomain.N_int_boundary; i++){
+        for(int j = 0; j < option.dim; j++){
+            global.subdomain.nodal_displacement_plus[i][j] += global.subdomain.nodal_displacement_increment_plus[i][j];
+            global.subdomain.nodal_displacement_increment_plus[i][j] = 0.;
+            global.subdomain.nodal_displacement_minus[i][j] += global.subdomain.nodal_displacement_increment_minus[i][j];
+            global.subdomain.nodal_displacement_increment_minus[i][j] = 0.;
+        }
+    }
+    
 }
