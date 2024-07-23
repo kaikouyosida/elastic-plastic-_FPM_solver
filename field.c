@@ -100,6 +100,8 @@ void init_field(){
     global.subdomain.nodal_displacement_increment_plus = matrix(global.subdomain.N_int_boundary * 4, option.dim);     //境界上の節点数＊内部境界の節点変位増分
     global.subdomain.nodal_displacement_increment_minus = matrix(global.subdomain.N_int_boundary * 4, option.dim);
     global.subdomain.nodal_stresses = matrix(global.subdomain.N_node, option.dim);
+    global.subdomain.nodal_displacement_sd = threetimes_tensor(global.subdomain.N_point, 8, option.dim);
+    global.subdomain.nodal_displacement_increment_sd = threetimes_tensor(global.subdomain.N_point, 8, option.dim);
 
     if((global.subdomain.nodal_equivalent_plastic_strains = (double *)calloc(global.subdomain.N_node, sizeof(double))) == NULL){
         printf("Error: nodal_eq_plastic_strains's memory is not enough\n");
@@ -116,6 +118,8 @@ void break_field(){
     free_matrix(global.subdomain.nodal_back_stresses);
     free(global.subdomain.nodal_yield_stresses);
     free(global.subdomain.nodal_equivalent_plastic_strains);
+    free_tensor(global.subdomain.nodal_displacement_increment_sd);
+    free_tensor(global.subdomain.nodal_displacement_sd);
     free_matrix(global.subdomain.nodal_stresses);
     free_matrix(global.subdomain.nodal_displacement_increment_minus);
     free_matrix(global.subdomain.nodal_displacement_increment_plus);

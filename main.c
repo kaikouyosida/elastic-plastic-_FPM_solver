@@ -26,7 +26,9 @@ int main(){
         break;
     }
     
-    printf("complete!\n");
+    //nit_model()で確保したメモリの開放
     break_model_memory();
+
+    printf("complete!\n");
     return 0;
 }

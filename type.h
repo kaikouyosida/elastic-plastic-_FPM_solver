@@ -97,6 +97,8 @@ typedef struct
     double *nodal_equivalent_plastic_strains;       //相当塑性ひずみの節点値
     double *nodal_yield_stresses;                   //降伏応力の節点値
     double **nodal_back_stresses;                    //背応力の節点値
+    double ***nodal_displacement_increment_sd;      //各サブドメインの形状関数で補完した節点変位増分
+    double ***nodal_displacement_sd;                //各サブドメインの形状関数で補完した節点変位
 
 } Subdomain;
 

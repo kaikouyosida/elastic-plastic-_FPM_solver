@@ -406,10 +406,6 @@ void Init_model()
         }
     }
     fclose(fp_Dirichlet);
-    //for(int i = 0; i < global.bc.N_D_DoF; i++)
-        //printf("%5d %5d\n", i, global.bc.fixed_dof[i]);
-    //printf("ok!\n");
-    //exit(-1);
 
     // トラクション条件を読み込む //
     FILE *fp_traction;
@@ -509,7 +505,6 @@ void break_model_memory(){
     free(global.subdomain.node);
     free(global.subdomain.vertex_offset);
     free(global.subdomain.face);
-    free(global.subdomain.support);
     free(global.subdomain.face_offset);
     free(global.subdomain.center_XYZ);
     free(global.subdomain.point_XYZ);

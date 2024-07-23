@@ -43,10 +43,13 @@ double invert3x3Matrix(double matrix_out[3][3],
                        double matrix[3][3]);
 
 //法線ベクトルの計算
+void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int subdomain2, double *current_point_XYZ);
 void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double *Ne);
 
 //法線ベクトルの計算, それぞれの用途に合った形のマトリクスで用意
 void calc_Ne_3x6(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6]);
+void generate_unit_vec_to_mat3x6(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[6]);
 
+void generate_unit_vec_to_mat3x9(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[9]);
 void calc_Ne_3x9(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[9]);
 

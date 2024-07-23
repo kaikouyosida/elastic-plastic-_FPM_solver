@@ -1,9 +1,14 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include<math.h>
 #include"scalar.h"
 #include"tensor.h"
 #include"type.h"
 #include"vector.h"
+#include"matrix.h"
+
+#define NUMBER_OF_NODE_IN_FACE 4
+#define NUMBER_OF_NODE_IN_SUBDOMAIN 8
 
 extern Global global;
 extern Option option;
@@ -47,81 +52,186 @@ double calculate3x3MatrixTrace(double matrix[3][3])
 double calc_subdomain_volume(int point_n){
     double volume = 0.;                     //サブドメインの体積
     double center[3];                       //サブドメインの重心
-    int N_face = global.subdomain.face_offset[point_n + 1] - global.subdomain.face_offset[point_n];
-    int subdomain_node[60];              //サブドメインpoint_nがもつ頂点番号
-    double edge1[3],edge2[3],edge3[3];   //辺のベクトル
-    double edge1_cross_edge2[3];         //辺のベクトルの外積
+    double edge1[3],edge2[3],edge3[3];                            //辺のベクトル
+    double edge1_cross_edge2[3];                                  //辺のベクトルの外積
+    int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];              //サブドメインpoint_nがもつ頂点番号
+    int node_id[NUMBER_OF_NODE_IN_FACE];                          //節点番号のアドレス(subdomain_node用)
+
+    int N_face = global.subdomain.face_offset[point_n + 1] - global.subdomain.face_offset[point_n];     //サブドメインpoint_nにおける面の数
 
     //6面体（節点8個）の重心を算術平均で計算
-    for(int i = 0; i < 8; i++)  
-        subdomain_node[i] = global.subdomain.subdomain_node[8 * point_n + i];
-   
+    generate_subdomain_node(point_n, subdomain_node);
+
     for(int i = 0; i < option.dim; i++){
         double center_i = 0.;
-        for(int j = 0; j < 8; j++){
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
             center_i += (global.subdomain.node_XYZ[option.dim * subdomain_node[j] + i]
-                     + global.subdomain.nodal_displacements[subdomain_node[j]][i]
-                     + global.subdomain.nodal_displacement_increments[subdomain_node[j]][i]);
+                     + global.subdomain.nodal_displacement_sd[point_n][j][i]
+                     + global.subdomain.nodal_displacement_increment_sd[point_n][j][i]);
         }
         center[i] = center_i / 8.0;
     }
 
     //各面の頂点と重心の5点で四角すいを形成。その後各面で総和をとって六面体の面積を計算する
     for(int i = 0; i < N_face; i++){
-        int ref_num = global.subdomain.vertex_offset[global.subdomain.face[global.subdomain.face_offset[point_n] + i]];
 
-
-        generate_current_node_vector(global.subdomain.node[ref_num], global.subdomain.node[ref_num + 1], edge1);
-        generate_current_node_vector(global.subdomain.node[ref_num], global.subdomain.node[ref_num + 2], edge2);
-        generate_current_node_to_point_vector(global.subdomain.node[ref_num], center, edge3);
+        //内部境界面のノード番号のアドレスを格納
+        generate_node_id(global.subdomain.face[global.subdomain.face_offset[point_n] + i], point_n, subdomain_node, node_id);
         
+    
+        generate_current_edge_vector(edge1, point_n, node_id[1], node_id[0], subdomain_node);
+        generate_current_edge_vector(edge2, point_n, node_id[3], node_id[0], subdomain_node);
+        generate_current_points_vector(edge3, center, point_n, node_id[0], subdomain_node);
+        
+
         cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
         volume += fabs(dot_product(option.dim,edge1_cross_edge2, edge3));
         
-        generate_current_node_vector(global.subdomain.node[ref_num + 2], global.subdomain.node[ref_num + 3], edge1);
-        generate_current_node_vector(global.subdomain.node[ref_num + 2], global.subdomain.node[ref_num + 1], edge2);
-        generate_current_node_to_point_vector(global.subdomain.node[ref_num], center, edge3);
-        cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+        generate_current_edge_vector(edge1, point_n, node_id[3], node_id[2], subdomain_node);
+        generate_current_edge_vector(edge2, point_n, node_id[1], node_id[2], subdomain_node);
+        generate_current_points_vector(edge3, center, point_n, node_id[2], subdomain_node);
+        
 
+        cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
         volume += fabs(dot_product(option.dim,edge1_cross_edge2, edge3));
     }
+    
     volume /= 6.0;
     
     return volume;
 }
 
-//物理空間座標→正規化座標に変換するためのスカラー値を計算
-double calc_area_change(int face_n, int s, int t, double *X){
-    int ref_num = global.subdomain.vertex_offset[face_n];
-    double scalar = 0.;
+//内部境界Γ*を物理座標→正規化座標にマッピングするためのパラメータを計算
+double calc_mapping_parameter_for_av_area(double face_node_XYZ[4][3], int s, int t, double *X){
+    double result = 0.;
     double area_vector[3];
     double dx_ds[3];
     double dx_dt[3];
-    double x1[3];
-    double x2[3];
-    double x3[3];
-    double x4[3];
-    int node1 = global.subdomain.node[ref_num];
-    int node2 = global.subdomain.node[ref_num + 1];
-    int node3 = global.subdomain.node[ref_num + 2];
-    int node4 = global.subdomain.node[ref_num + 3];
 
-    for(int i = 0; i < option.dim; i++){
-        x1[i] = global.subdomain.node_XYZ[option.dim * node1 + i] + global.subdomain.nodal_displacements[node1][i] + global.subdomain.nodal_displacement_increments[node1][i];
-        x2[i] = global.subdomain.node_XYZ[option.dim * node2 + i] + global.subdomain.nodal_displacements[node2][i] + global.subdomain.nodal_displacement_increments[node2][i];
-        x3[i] = global.subdomain.node_XYZ[option.dim * node3 + i] + global.subdomain.nodal_displacements[node3][i] + global.subdomain.nodal_displacement_increments[node3][i];
-        x4[i] = global.subdomain.node_XYZ[option.dim * node4 + i] + global.subdomain.nodal_displacements[node4][i] + global.subdomain.nodal_displacement_increments[node4][i];
+    //x_h = 1/4*(1-ξ*ξ_i)*(1-η*η_i)*x_iのξ, ηに対する微係数を計算.
+    for(int i = 0; i < option.dim ; i++){
+        dx_ds[i] = -0.25 * (1.0 - X[t]) * face_node_XYZ[0][i] - 0.25 * (1.0 + X[t]) * face_node_XYZ[1][i] + 0.25 * (1.0 + X[t]) * face_node_XYZ[2][i] + 0.25 * (1.0 - X[t]) * face_node_XYZ[3][i];
+        dx_dt[i] = -0.25 * (1.0 - X[s]) * face_node_XYZ[0][i] + 0.25 * (1.0 - X[s]) * face_node_XYZ[1][i] + 0.25 * (1.0 + X[s]) * face_node_XYZ[2][i] - 0.25 * (1.0 + X[s]) * face_node_XYZ[3][i];
     }
 
+    //面積変化率を計算 da/dA=norm((dx_h/dξ)×(dx_h/dη))
+    cross_product(option.dim, dx_ds, dx_dt, area_vector);
+    result = norm(area_vector, option.dim);
+    return result;
+}
+
+//内部境界Γ+とΓ-を物理座標→正規化座標にマッピングするためのパラメータを計算
+double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X){
+    double area_vector[3];                                    //エリアベクトルの計算
+    double dx_ds[3];                                          //微係数dx_h/dξ
+    double dx_dt[3];                                          //微係数dx_h/dη
+    double x1[3], x2[3], x3[3], x4[3];                        //頂点座標
+    int node_id[NUMBER_OF_NODE_IN_FACE];                      //頂点番号のアドレス
+    int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];          //サブドメイン中の節点番号
+
+    //ノード番号のアドレスを取得
+    generate_subdomain_node(point_n, subdomain_node);
+    generate_node_id(face_n, point_n, subdomain_node, node_id);
+    
+    for(int i = 0; i < option.dim; i++){
+        x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[0]][i];
+        x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[1]][i];
+        x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[2]][i];
+        x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[3]][i];
+    }
+    
     //x_h = 1/4*(1-ξ*ξ_i)*(1-η*η_i)*x_iのξ, ηに対する微係数を計算.
     for(int i = 0; i < option.dim ; i++){
         dx_ds[i] = -0.25 * (1.0 - X[t]) * x1[i] - 0.25 * (1.0 + X[t]) * x2[i] + 0.25 * (1.0 + X[t]) * x3[i] + 0.25 * (1.0 - X[t]) * x4[i];
         dx_dt[i] = -0.25 * (1.0 - X[s]) * x1[i] + 0.25 * (1.0 - X[s]) * x2[i] + 0.25 * (1.0 + X[s]) * x3[i] - 0.25 * (1.0 + X[s]) * x4[i];
     }
-    
+     
+    //面積変化率を計算 da/dA=norm((dx_h/dξ)×(dx_h/dη))
     cross_product(option.dim, dx_ds, dx_dt, area_vector);
-    scalar = norm(area_vector, option.dim);
-    return scalar;
+    
+    double result = norm(area_vector, option.dim);
+    return result;
+}
+
+//面積変化率（dΓ*/dΓ0)の計算
+double generate_area_change_parameter(int subdomain_n1, int subdomain_n2, int face_n, int *vertex_offset, double face_node_XYZ[4][3], double *center_xyz){
+    double trial_elastic_left_cauchy_green_deformations1[3][3];     //trial strainから計算したサブドメイン１の左Cauchyグリーンテンソル
+    double trial_elastic_strain_tensor1[3][3];                      //サブドメイン1の試行ひずみテンソル
+    double trial_elastic_left_cauchy_green_deformations2[3][3];     //trial strainから計算したサブドメイン2の左Cauchyグリーンテンソル
+    double trial_elastic_strain_tensor2[3][3];                      //サブドメイン2の試行ひずみテンソル
+    double trial_elastic_strains1[6];                               //サブドメイン1のひずみテンソルのvoigt表記
+    double trial_elastic_strains2[6];                               //サブドメイン2のひずみテンソルのvoigt表記
+    double trial_elastic_left_cauchy_green_deformations[3][3];      //平均化された左Cauchyグリーンテンソル
+    double deformation_gradients[3][3];                             //平均化された変形勾配テンソル
+    double Ne[3];                                                   //法線ベクトル
+    double inverse_deformation_gradient;                            //体積変化率
+    double area_change_parameter = 0.;                              //Γ*の面積変化率
+
+    for(int i = 0; i < 6; i++){
+        trial_elastic_strains1[i] = global.subdomain.trial_elastic_strains[subdomain_n1][i];
+        trial_elastic_strains2[i] = global.subdomain.trial_elastic_strains[subdomain_n2][i];
+    }
+    
+    //subdomain1の試行弾性左コーシーグリーンテンソルの計算
+    trial_elastic_strain_tensor1[0][0] = 2.0 * trial_elastic_strains1[0];
+    trial_elastic_strain_tensor1[0][1] = 2.0 * 0.5 * trial_elastic_strains1[3];
+    trial_elastic_strain_tensor1[0][2] = 2.0 * 0.5 * trial_elastic_strains1[5];
+    trial_elastic_strain_tensor1[1][0] = 2.0 * 0.5 * trial_elastic_strains1[3];
+    trial_elastic_strain_tensor1[1][1] = 2.0 * trial_elastic_strains1[1];
+    trial_elastic_strain_tensor1[1][2] = 2.0 * 0.5 * trial_elastic_strains1[4];
+    trial_elastic_strain_tensor1[2][0] = 2.0 * 0.5 * trial_elastic_strains1[5];
+    trial_elastic_strain_tensor1[2][1] = 2.0 * 0.5 * trial_elastic_strains1[4];
+    trial_elastic_strain_tensor1[2][2] = 2.0 * trial_elastic_strains1[2];
+
+    calculateTensorExponent(trial_elastic_left_cauchy_green_deformations1,
+                            trial_elastic_strain_tensor1);
+
+    //subdomain2の試行弾性左コーシーグリーンテンソルの計算
+    trial_elastic_strain_tensor2[0][0] = 2.0 * trial_elastic_strains2[0];
+    trial_elastic_strain_tensor2[0][1] = 2.0 * 0.5 * trial_elastic_strains2[3];
+    trial_elastic_strain_tensor2[0][2] = 2.0 * 0.5 * trial_elastic_strains2[5];
+    trial_elastic_strain_tensor2[1][0] = 2.0 * 0.5 * trial_elastic_strains2[3];
+    trial_elastic_strain_tensor2[1][1] = 2.0 * trial_elastic_strains2[1];
+    trial_elastic_strain_tensor2[1][2] = 2.0 * 0.5 * trial_elastic_strains2[4];
+    trial_elastic_strain_tensor2[2][0] = 2.0 * 0.5 * trial_elastic_strains2[5];
+    trial_elastic_strain_tensor2[2][1] = 2.0 * 0.5 * trial_elastic_strains2[4];
+    trial_elastic_strain_tensor2[2][2] = 2.0 * trial_elastic_strains2[2];
+
+    calculateTensorExponent(trial_elastic_left_cauchy_green_deformations2,
+                            trial_elastic_strain_tensor2);
+    
+    calc_unit_vector(Ne, global.subdomain.shared_face[face_n], subdomain_n1, subdomain_n2, center_xyz);
+
+    //内部境界Γ*での左Cauchyグリーンテンソルを計算(B+とB-の平均値)
+    for(int i = 0; i < option.dim; i++){
+        for(int j = 0; j < option.dim; j++){
+            trial_elastic_left_cauchy_green_deformations[i][j]
+                = 0.5 * (trial_elastic_left_cauchy_green_deformations1[i][j] + trial_elastic_left_cauchy_green_deformations2[i][j]);
+        }
+    }
+
+    //体積変化率の計算.内部境界を共有するサブドメインどうしの変形勾配の平均がとられ、そのデターミナントを計算.
+    for(int i = 0; i < option.dim; i++){
+        for(int j = 0; j < option.dim; j++){
+            deformation_gradients[i][j] 
+                = 0.5 * (global.subdomain.current_deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face_n]] 
+                        + global.subdomain.current_deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face_n + 1]]);
+        }
+    }
+
+    inverse_deformation_gradient = 1.0 / calc_3x3matrix_determinant(deformation_gradients);
+    
+    for(int i = 0; i < option.dim; i++){
+        double nB_i = 0.;
+        for(int j = 0; j < option.dim; j++){
+            nB_i += Ne[j] * trial_elastic_left_cauchy_green_deformations[j][i];
+        }
+        area_change_parameter += nB_i * Ne[i];
+    }
+
+    area_change_parameter = inverse_deformation_gradient * sqrt(area_change_parameter);
+
+    return area_change_parameter;
 }
 
 //内積を計算する

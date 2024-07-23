@@ -21,6 +21,7 @@ int count = 0;
 
 void analize_by_NewtonRaphson(){
     FILE *fp_debug;         //デバッグ用のファイルポインタ
+    FILE *fp_debug_du;
     char FILE_name[128];    //デバッグ用の文字配列
     double error_old = 100.0;       //１反復前の残差ノルム
     double residual_norm;   //残差ノルム（収束判定）
@@ -45,38 +46,42 @@ void analize_by_NewtonRaphson(){
 
             //変形勾配テンソル、応力、歪みを更新＋内力ベクトルの更新
             update_field_and_internal_forces();
-
-            //外力ベクトルの更新
-            update_external_force(time_step);
-
-            //係数マトリクスの更新
-            generate_coefficient_matrix();
-
-            #if 0
-            if(iteration_step == 0){
-                fp_debug = fopen("coefficient_for_debug.dat", "w");
-                if(fp_debug == NULL)
-                    printf("FILE is not enough\n");
-                for(int i = 0; i < 3*global.subdomain.N_point; i++){
-                    for(int j = 0; j < 3*global.subdomain.N_point; j++){
-                        fprintf(fp_debug, "%+8.7e   ", global.subdomain.Global_K[3*global.subdomain.N_point*i+j]);
+            if(iteration_step == 1){
+                if((fp_debug = fopen("Internal_force_new.dat", "w")) == NULL){
+                    printf("File is not open\n");
+                    exit(-1);
+                }
+                fprintf(fp_debug, "point          /           x1          x2          x3          \n");
+                for(int point = 0; point < global.subdomain.N_point; point++){
+                    fprintf(fp_debug, "%5d  ", point);
+                    for(int i = 0; i < option.dim; i++){
+                        fprintf(fp_debug, "     %+15.14e", global.subdomain.global_internal_force[point][i]);
                     }
                     fprintf(fp_debug, "\n");
                 }
-            }
-            if(iteration_step > 0){
-                fp_debug = fopen("coefficient_for_debug.dat", "r");
-                if(fp_debug == NULL)
-                    printf("File is not open\n");
-                for(int i = 0; i < 3*global.subdomain.N_point; i++){
-                    for(int j = 0; j < 3*global.subdomain.N_point; j++){
-                        fscanf(fp_debug, "%lf   ", &global.subdomain.Global_K[3*global.subdomain.N_point*i+j]);
-                    }
-                    fgetc(fp_debug);
-                }
                 fclose(fp_debug);
             }
-            #endif
+            //外力ベクトルの更新
+            update_external_force(time_step);
+            if(iteration_step == 1){
+                if((fp_debug = fopen("external_force.dat", "w")) == NULL){
+                    printf("File is not open\n");
+                    exit(-1);
+                }
+                fprintf(fp_debug, "point          /           x1          x2          x3          \n");
+                for(int point = 0; point < global.subdomain.N_point; point++){
+                    fprintf(fp_debug, "%5d  ", point);
+                    for(int i = 0; i < option.dim; i++){
+                        fprintf(fp_debug, "     %+15.14e", global.subdomain.global_external_force[point][i]);
+                    }
+                    fprintf(fp_debug, "\n");
+                }
+                fclose(fp_debug);
+                exit(0);
+            }
+            //係数マトリクスの更新
+            generate_coefficient_matrix();
+
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
             if(residual_norm <= option.NR_tol){// && iteration_step != 0){
@@ -118,12 +123,15 @@ void analize_by_NewtonRaphson(){
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
             //printf("Now solving!!\n");
             solver_LU_decomposition(K_u, du, r, solver_DoF);
-            
+
             //ポイントの変位修正ベクトルの値をもとに変位増分を更新.
             if((current_point_xyz = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("current_point_xyz's is not neough\n");
                 exit(-1);
             }
+            // ポイント変位の増分を更新
+            update_point_displaecment_increment(current_point_xyz, du);
+
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < option.dim; j++){
                     current_point_xyz[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
@@ -131,9 +139,20 @@ void analize_by_NewtonRaphson(){
                                                         + global.subdomain.displacement_increment[i][j];
                 }
             }
+            
+            
+            #if 1
+            if(fp_debug = fopen("Data_Files_Output/displacement_increment.dat", "w"));
+                fprintf(fp_debug, "ux  /                 uy              /  uz              \n");
+                for(int i = 0; i < global.subdomain.N_point; i++){
+                    for(int j = 0; j < option.dim; j++){
+                        fprintf(fp_debug, "%+15.14e     ", global.subdomain.displacement_increment[i][j]);
+                    }
+                 fprintf(fp_debug, "\n");
+            }
+            fclose(fp_debug);
+            #endif
 
-            // ポイント変位の増分を更新
-            update_point_displaecment_increment(current_point_xyz, du);
             //ノード変位の増分を更新
             update_nodal_displacement_increment(current_point_xyz);
             
@@ -146,14 +165,18 @@ void analize_by_NewtonRaphson(){
                 printf("Iteration is not converged\n");
                 exit(-1);
             }
-            
         }
 
         if((time_step + 1) % option.time_output == 0)
             Output_data(time_step);
+
         increment_field();
-        if((time_step + 1) % option.time_output == 0)
+
+        if((time_step + 1) % option.time_output == 0){
+            update_nodal_coordinate();
             paraview_node_data(time_step);
+        }
+            
     }
     
     break_field();          //変数のメモリを開放

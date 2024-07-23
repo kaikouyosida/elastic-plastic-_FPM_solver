@@ -3,12 +3,15 @@
 #include"type.h"
 #include"Output_data.h"
 #include"scalar.h"
+#include"vector.h"
 
-#define VERTEX 8
+#define NUMBER_OF_NODE_IN_FACE 4
+#define NUMBER_OF_NODE_IN_SUBDOMAIN 8
 
 extern Global global;
 extern Option option;
 
+//応力節点データ等の出力
 void Output_data(int time_step){
     FILE *fp_deformation;
     FILE *fp_stress;
@@ -93,6 +96,33 @@ void Output_data(int time_step){
     fclose(fp_volume);
 }
 
+//出力用の節点変位の計算
+void update_nodal_coordinate(){
+    double face_node_XYZ[4][3];
+    double nodal_displacement[3];
+    
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        for(int i = 0; i < option.dim; i++)
+            nodal_displacement[i] = 0.;
+
+        for(int point = 0; point < global.subdomain.N_point; point++){
+            int N_ar_point = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+            for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
+                if(node == global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i]){
+                    for(int j = 0; j < option.dim; j++){
+                        nodal_displacement[j] += global.subdomain.nodal_displacement_sd[point][i][j] / (double)N_ar_point;
+                    }
+                }
+            }
+        }
+
+        for(int i = 0; i < option.dim; i++)
+            global.subdomain.nodal_displacements[node][i] = nodal_displacement[i];
+    }
+
+}
+
+//paraviewデータの出力
 void paraview_node_data(int time_step){
     FILE *fp_paraview;
     double stresses[9];
@@ -115,12 +145,12 @@ void paraview_node_data(int time_step){
         }  
         fprintf(fp_paraview, "\n");
     }
-    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (VERTEX + 1));
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
     
     for(int i = 0; i < global.subdomain.N_point; i++){
-        fprintf(fp_paraview,  "%5d ", VERTEX);
-        for(int j = 0; j < VERTEX; j++){
-            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[VERTEX * i + j]);
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
         }
         fprintf(fp_paraview,  "\n");
     }
@@ -144,12 +174,12 @@ void paraview_node_data(int time_step){
         }  
         fprintf(fp_paraview, "\n");
     }
-    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (VERTEX + 1));
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
     
     for(int i = 0; i < global.subdomain.N_point; i++){
-        fprintf(fp_paraview,  "%5d ", VERTEX);
-        for(int j = 0; j < VERTEX; j++){
-            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[VERTEX * i + j]);
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
         }
         fprintf(fp_paraview,  "\n");
     }
@@ -186,12 +216,12 @@ void paraview_node_data(int time_step){
         }  
         fprintf(fp_paraview, "\n");
     }
-    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (VERTEX + 1));
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
     
     for(int i = 0; i < global.subdomain.N_point; i++){
-        fprintf(fp_paraview,  "%5d ", VERTEX);
-        for(int j = 0; j < VERTEX; j++){
-            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[VERTEX * i + j]);
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
         }
         fprintf(fp_paraview,  "\n");
     }

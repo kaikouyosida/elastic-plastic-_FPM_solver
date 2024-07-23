@@ -3,7 +3,12 @@
 #include<math.h>
 #include"type.h"
 #include"scalar.h"
+#include"vector.h"
 
+#define NUMBER_OF_NODE_IN_FACE 4
+#define NUMBER_OF_NODE_IN_SUBDOMAIN 8
+
+extern Global global;
 extern Option option;
 
 double** matrix(int m, int n){
@@ -333,6 +338,65 @@ void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_
 			Ne[i] /= (double)(vertex_offset[face + 1] - ref_offset - 2);
 	}
 }
+void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int subdomain2, double *current_point_XYZ){
+	int ref_num = global.subdomain.vertex_offset[face_n];
+	int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];
+	int node_id[NUMBER_OF_NODE_IN_FACE];
+	double edge1[3];
+	double edge2[3]; // 面を分割してできた三角形の各辺のベクトル
+	double edge1_cross_edge2[3];
+	double direction[3];
+	double area_norm;
+
+	//単位ベクトルの方向を決定＋単位法線ベクトルを初期化
+	for(int i = 0; i < option.dim; i++){
+		direction[i] = current_point_XYZ[option.dim * subdomain2 + i] - current_point_XYZ[option.dim * subdomain1 + i];
+		unit_vector[i] = 0.;
+	}
+	
+	//face_nにおけるノード番号のアドレスを取得
+	generate_subdomain_node(subdomain1, subdomain_node);
+	generate_node_id(face_n, subdomain1, subdomain_node, node_id);
+
+	//四辺形を2つの三角形に分割→二つの法線ベクトルの平均をその面の法線ベクトルとして計算
+	for(int i = 0; i < 2; i++){
+		generate_current_edge_vector(edge1, subdomain1, node_id[2 * i + 1], node_id[2 * i], subdomain_node);
+		generate_current_edge_vector(edge2, subdomain1, node_id[(2 + i) % 3 + 1], node_id[2 * i], subdomain_node);
+
+		cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+
+		area_norm = norm(edge1_cross_edge2, option.dim);
+		for(int j = 0; j < option.dim; j++)
+			edge1_cross_edge2[j] /= area_norm;
+
+		if(dot_product(option.dim, direction, edge1_cross_edge2) < 0.)
+			for(int j = 0; j < option.dim; j++)
+				edge1_cross_edge2[j] *= -1.0;
+
+		for(int j = 0; j < option.dim; j++){
+			unit_vector[j] += edge1_cross_edge2[j];
+		}
+	}
+	
+	for(int i = 0; i < option.dim; i++)
+		unit_vector[i] /= 2.0;
+}
+
+void generate_unit_vec_to_mat3x6(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[6]){
+	double Ne[3];
+	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
+	N_matrix[0][0] = Ne[0];	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];		N_matrix[0][4] = 0.0;		N_matrix[0][5] = Ne[2];
+	N_matrix[1][0] = 0.0;   N_matrix[1][1] = Ne[1];   	N_matrix[1][2] = 0.0;		N_matrix[1][3] = Ne[0];		N_matrix[1][4] = Ne[2]; 	N_matrix[1][5] = 0.0;
+	N_matrix[2][0] = 0.0;	N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[2];		N_matrix[2][3] = 0.0 ;		N_matrix[2][4] = Ne[1]; 	N_matrix[2][5] = Ne[0];
+}
+
+void generate_unit_vec_to_mat3x9(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[9]){
+	double Ne[3];
+	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
+	N_matrix[0][0] = Ne[0]; 	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];			N_matrix[0][4] = 0.0;		N_matrix[0][5] = 0.0;      N_matrix[0][6] = Ne[2];			N_matrix[0][7] = 0.0;		N_matrix[0][8] = 0.0; 
+	N_matrix[1][0] = 0.0;       N_matrix[1][1] = Ne[0];		N_matrix[1][2] = 0.0;		N_matrix[1][3] = 0.0   ;		N_matrix[1][4] = Ne[1]; 	N_matrix[1][5] = 0.0;      N_matrix[1][6] = 0.0;			N_matrix[1][7] = Ne[2]; 	N_matrix[1][8] = 0.0;
+	N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[0];		N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = 0.0;	 	N_matrix[2][5] = Ne[1]; 	N_matrix[2][6] = 0.0;	 		N_matrix[2][7] = 0.0;		N_matrix[2][8] = Ne[2];	
+}
 
 void calc_Ne_3x6(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6]){
 	double Ne[3];
@@ -364,6 +428,7 @@ double calculate3x3MatrixDeterminant(double matrix[3][3])
         - matrix[0][1] * matrix[1][0] * matrix[2][2]
         - matrix[0][2] * matrix[1][1] * matrix[2][0];
 }
+
 double invert3x3Matrix(double matrix_out[3][3],
                        double matrix[3][3])
 {
