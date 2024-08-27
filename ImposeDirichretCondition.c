@@ -8,6 +8,7 @@
 extern Option option;
 extern Global global;
 
+//強制変位を設定
 double fixed_deformation(double time, double time_end, double x1, double x2, double x3, int type){
   double fixed_u;
 
@@ -18,8 +19,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   
   else if(type == 1){
     // 変位を固定 //
-		fixed_u = 0.005 * time / time_end;
-    //printf("%+8.7e %+8.7e\n", time, time_end);
+		fixed_u = 0.1 * time / time_end;
 	}
   else if(type == 2){
     // x軸方向のTimoshenko梁の変位固定 //
@@ -56,6 +56,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   return fixed_u;
 }
 
+//残差ベクトルにディリクレ条件を反映
 void ImposeDirichretResidual(int iteration_step)
 {
     int count = 0;                                         //カウンタ
@@ -151,6 +152,7 @@ void ImposeDirichretResidual(int iteration_step)
         }
     }
 }
+
 // ディリクレ条件に応じて接線剛性マトリクスと残差を書き換える (full-matrix形式) //
 void ImposeDirichletTangentialMatrix(){
 	int DoF_free = option.dim * global.subdomain.N_point;  // 拘束を考慮しない自由度
@@ -160,10 +162,10 @@ void ImposeDirichletTangentialMatrix(){
     if(global.bc.fixed_dir[i] % 2 == 0){
       // 第dim*i行の第dim*i列目を1,それ以外を0とする //
       for(int j=0;j<DoF_free;j++){
-          global.subdomain.Global_K[DoF_free * option.dim * i + j] = 0.;
-          global.subdomain.Global_K[DoF_free * j + option.dim * i] = 0.;
+          global.subdomain.Global_K[DoF_free * (option.dim * i) + j] = 0.;
+          global.subdomain.Global_K[DoF_free * j + (option.dim * i)] = 0.;
       }
-      global.subdomain.Global_K[DoF_free * option.dim * i + option.dim * i] = 1.0;
+      global.subdomain.Global_K[DoF_free * (option.dim * i) + option.dim * i] = 1.0;
     }
     // y方向の変位が固定されているとき //
     if(global.bc.fixed_dir[i] % option.dim == 0){

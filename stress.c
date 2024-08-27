@@ -2,7 +2,7 @@
 #include"stress.h"
 #include"scalar.h"
 
-double calc_equivalent_stress(double *stresses)
+double calc_equivalent_stress(const double *stresses)
 {
     /* Calculate vonMises' equivalent stress */
     return sqrt(0.5 * (calculateSquare(stresses[0] - stresses[1])

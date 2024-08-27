@@ -30,7 +30,7 @@ void update_external_force(int time){
     double lambda;                          //(ステップ数) / (最終ステップ数)     
 
     lambda = ((double)time + 1.0) / (double)option.N_timestep;
-
+    
     //外力ベクトルをゼロ処理
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < option.dim; j++){
@@ -43,13 +43,20 @@ void update_external_force(int time){
         printf("Error:current_point_XYZ's memory is not enough\n");
         exit(-1);
     }
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < option.dim; j++){
-            current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                        + global.subdomain.displacement[i][j]
-                                        + global.subdomain.displacement_increment[i][j];
+    if(option.solver_type == 1){
+        for(int i = 0; i < global.subdomain.N_point; i++){
+            for(int j = 0; j < option.dim; j++){
+                current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                                            + global.subdomain.displacement[i][j]
+                                            + global.subdomain.displacement_increment[i][j];
+            }
         }
+    }else{
+        for(int i = 0; i < global.subdomain.N_point; i++)
+            for(int j = 0; j < option.dim; j++)
+                current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j];
     }
+    
    
    //ガウス積分点と重みを計算
     Gauss_points_and_weighting_factors(N_qu, X, w);
@@ -58,7 +65,18 @@ void update_external_force(int time){
     for(int face = 0; face < global.bc.N_t_face; face++){
         int N_support = global.subdomain.support_offset[global.bc.traction_point[face] + 1] - global.subdomain.support_offset[global.bc.traction_point[face]];
 
-        generate_current_node_of_face(face_node_XYZ, global.bc.traction_face[face], global.bc.traction_point[face]);
+        //面内節点座標の更新
+        if(option.solver_type == 1){
+            generate_current_node_of_face(face_node_XYZ, global.bc.traction_face[face], global.bc.traction_point[face]);
+        }else{
+            for(int i = 0; i < NUMBER_OF_NODE_IN_FACE; i++){
+                for(int j = 0; j < option.dim; j++){
+                    face_node_XYZ[i][j] 
+                        = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[global.bc.traction_face[face]] + i] + j];
+                }
+            }
+        }
+        
 
         //要素外力ベクトルの計算
         for(int s = 0; s < N_qu; s++){
@@ -92,19 +110,6 @@ void update_external_force(int time){
         
     }
 
-    #if 0
-            fp_debug = fopen("global_external_vector.dat","w");
-            
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                fprintf(fp_debug,"%5d    ", i);
-                for(int j = 0; j < 3; j++){
-                    fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_external_force[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fclose(fp_debug);
-    #endif
-
     free(current_point_XYZ);
 }
 
@@ -112,7 +117,7 @@ void update_external_force(int time){
 void traction(double x1, double x2, double x3, double* t, int type){
 	if(type == 0){
     // x=1の面に課す荷重 //
-		t[0] = 0.0;  t[1] = 0.0;  t[2] = 1.0;
+		t[0] = 0.0;  t[1] = 150.0;  t[2] = 0.0;
 	}
   if(type == 1){
     // x=0の面に課す荷重 //

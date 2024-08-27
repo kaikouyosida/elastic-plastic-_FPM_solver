@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Ofast -pipe -Wall
+CFLAGS = -Ofast -pipe -Wall -g
 .PHONY: solver
 TARGET = solver
 SRCS = main.c model.c
@@ -14,6 +14,7 @@ OBJS = $(SRCS:.c=.o)
 run:
 	make -C Data_Files_Input
 	make all
+	make clean
 	
 all: $(TARGET)
 	.\solver.exe

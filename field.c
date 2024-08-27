@@ -10,6 +10,7 @@ extern Option option;
 
 void init_field(){
     //変位ベクトル、変位増分ベクトルをゼロ処理
+    global.subdomain.previous_displacement_increment = matrix(global.subdomain.N_point, option.dim);
     global.subdomain.displacement = matrix(global.subdomain.N_point, option.dim);
     global.subdomain.displacement_increment = matrix(global.subdomain.N_point, option.dim);
 
@@ -32,8 +33,8 @@ void init_field(){
     global.subdomain.global_internal_force = matrix(global.subdomain.N_point, option.dim);
 
     //変形勾配テンソルをゼロ処理
-    global.subdomain.deformation_gradients = threetimes_tensor(3, 3, global.subdomain.N_point);
-    global.subdomain.current_deformation_gradients = threetimes_tensor(3, 3, global.subdomain.N_point);
+    global.subdomain.deformation_gradients = threetimes_tensor(option.dim, option.dim, global.subdomain.N_point);
+    global.subdomain.current_deformation_gradients = threetimes_tensor(option.dim, option.dim, global.subdomain.N_point);
     //変形勾配テンソルを単位テンソルにする
     for(int point = 0; point < global.subdomain.N_point; point++){
         for(int i = 0; i < 3; i++){
@@ -50,6 +51,7 @@ void init_field(){
     global.subdomain.elastic_strains = matrix(global.subdomain.N_point, 6);
     global.subdomain.current_elastic_strains = matrix(global.subdomain.N_point, 6);
     global.subdomain.trial_elastic_strains = matrix(global.subdomain.N_point, 6);
+    global.subdomain.current_plastic_strains = matrix(global.subdomain.N_point, 6);
 
     //応力、現配置の応力をゼロ処理
     global.subdomain.stresses = matrix(global.subdomain.N_point, 6);
@@ -74,6 +76,7 @@ void init_field(){
         printf("Error: yield_stresses's memory is not enough\n");
         exit(-1);
     }
+    
     //初期の降伏応力値をyield_stressesに格納
     for(int point = 0; point < global.subdomain.N_point; point++){
         global.subdomain.yield_stresses[point] = get_hardening_stress(0.0);
@@ -136,6 +139,7 @@ void break_field(){
     free(global.subdomain.equivalent_stresses);
     free_matrix(global.subdomain.current_stresses);
     free_matrix(global.subdomain.stresses);
+    free_matrix(global.subdomain.current_plastic_strains);
     free_matrix(global.subdomain.trial_elastic_strains);
     free_matrix(global.subdomain.current_elastic_strains);
     free_matrix(global.subdomain.elastic_strains);
@@ -150,4 +154,5 @@ void break_field(){
     free(global.subdomain.Global_K);
     free_matrix(global.subdomain.displacement_increment);
     free_matrix(global.subdomain.displacement);
+    free_matrix(global.subdomain.previous_displacement_increment);
 }

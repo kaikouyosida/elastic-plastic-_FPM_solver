@@ -50,13 +50,6 @@ void Init_model()
         exit(-1);
     }
     fscanf(fp_material, "%*[^\n]\n");
-    fscanf(fp_material, "%*[^\n]\n");
-    fscanf(fp_material, "%d\n", &global.material.material_type);
-    fgetc(fp_material);
-    fscanf(fp_material, "%*[^\n]\n");
-    fscanf(fp_material, "%lf\n", &global.material.rho);
-    fgetc(fp_material);
-    fscanf(fp_material, "%*[^\n]\n");
     fscanf(fp_material, "%lf\n", &global.material.E_mod);
     fgetc(fp_material);
     fscanf(fp_material, "%*[^\n]\n");
@@ -64,6 +57,7 @@ void Init_model()
     fgetc(fp_material);
     fscanf(fp_material, "%*[^\n]\n");
     fscanf(fp_material, "%d\n", &ss_curve.num);
+    
     if ((ss_curve.plastic_strain = (double *)calloc(ss_curve.num, sizeof(double))) == NULL)
     {
         printf("Error:Plastic strain's memory is not enough\n");
@@ -74,11 +68,11 @@ void Init_model()
         printf("Error:Stress's memory is not enough\n");
         exit(-1);
     }
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < ss_curve.num; i++)
     fscanf(fp_material, "%lf %lf\n", &ss_curve.plastic_strain[i], &ss_curve.stress[i]);
     fscanf(fp_material, "%lf\n", &global.material.kinematic_hardening_fractions);
     fclose(fp_material);
-
+    
     global.material.penalty = option.magni * global.material.E_mod;
 
     FILE *fp_subdomain;
@@ -484,6 +478,7 @@ void Init_model()
 
         global.subdomain.ar_node_offset[i + 1] = global.subdomain.ar_node_offset[i] + global.buf;
     }
+    
 
     fclose(fp_point_ar_node);
     global.count = 0;

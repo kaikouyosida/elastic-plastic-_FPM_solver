@@ -3,28 +3,38 @@
 #include"model.h"
 #include"type.h"
 #include"fpm.h"
-#include"Output.h"
+#include"Output_data.h"
+
 
 Global global;
 Option option;
 SS_CURVE ss_curve;
 
 #define NON_LINEAR_SOLVER 1
-#define LINEAR_SOLVER 2
+#define INFINITESIMAL 2
+#define LINEAR_SOLVER 3
 
 int main(){
-    int solver_type = 1;
 
+    
     Init_model();
-
-    switch(solver_type){
+    //calc_extract_component();
+    //exit(0);
+    option.solver_type = 2;
+    
+    switch(option.solver_type){
         case NON_LINEAR_SOLVER:
             analize_by_NewtonRaphson();
+        break;
+        case INFINITESIMAL:
+            infinitesimal_analization();
         break;
         case LINEAR_SOLVER:
             Linear_analization();
         break;
     }
+
+
     
     //nit_model()で確保したメモリの開放
     break_model_memory();

@@ -3,15 +3,18 @@
 #include"type.h"
 #include"tensor.h"
 #include"matrix.h"
+#include"stress.h"
+#include"ss_curve.h"
 
 extern Global global;
 extern Option option;
+extern SS_CURVE ss_curve;
 
 double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
                                 {0.0, 1.0, 0.0},
                                 {0.0, 0.0, 1.0}};
 
-
+//弾性Dマトリクスの計算
 void generateElasticDMatrix(double (*d_matrix)[6]){
     double young_modulus
         = global.material.E_mod;
@@ -47,6 +50,7 @@ void generateElasticDMatrix(double (*d_matrix)[6]){
     d_matrix[5][3] = 0.0; d_matrix[5][4] = 0.0; d_matrix[5][5] = d33;
 }
 
+//コンシステント弾性Dマトリクスの計算
 void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_stresses, double *trial_elastic_strains, double (*current_deformation_gradient)[3]){
     double consistent_d_tensor[3][3][3][3];
     double d_tensor[3][3][3][3];
@@ -139,6 +143,84 @@ void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_s
     convertSymmetric4thOrderTensorToMatrix(d_matrix,
                                            consistent_d_tensor);
 }
+
+//材料非線形性のDマトリクスの計算
+void generate_elastic_plastic_d_matrix(double d_matrix[6][6], const double trial_elastic_strains[6], const double equivalent_plastic_strain, const double equivalent_plastic_strain_increment, const double back_stresses[6]){
+    const double bulk_modulus = global.material.E_mod / (3.0 * (1.0 - 2.0 * global.material.nu_mod));
+    const double shear_modulus = 0.5 * global.material.E_mod / (1.0 + global.material.nu_mod);
+    const double hardening_modulus = get_hardening_modulus(equivalent_plastic_strain + equivalent_plastic_strain_increment);
+
+    double temp;
+    double coefficient;
+    double trial_volumetric_strain;
+    double trial_hydrostatic_stress;
+    double trial_relative_equivalent_stress;
+    double trial_relative_deviatoric_stresses[6];
+    double trial_relative_stresses[6];
+
+    //試行弾性ひずみの体積成分
+    trial_volumetric_strain
+        = trial_elastic_strains[0]
+        + trial_elastic_strains[1]
+        + trial_elastic_strains[2];
+    
+    //静水圧の計算
+    trial_hydrostatic_stress = bulk_modulus * trial_volumetric_strain;
+
+    //試行相対応力の偏差成分を計算
+    for(int i = 0; i < 3; i++)
+        trial_relative_deviatoric_stresses[i]
+            = 2.0 * shear_modulus
+            * (trial_elastic_strains[i]
+               - trial_volumetric_strain / 3.0)
+            - back_stresses[i];
+    for(int i = 3; i < 6; i++)
+        trial_relative_deviatoric_stresses[i]
+            = 2.0 * shear_modulus
+            * 0.5 * trial_elastic_strains[i]
+            - back_stresses[i];
+
+    //試行相対応力の計算
+    for (int i = 0; i < 3; i++)
+        trial_relative_stresses[i]
+            = trial_relative_deviatoric_stresses[i]
+            + trial_hydrostatic_stress;
+    for (int i = 3; i < 6; i++)
+        trial_relative_stresses[i]
+            = trial_relative_deviatoric_stresses[i];
+    
+    //試行相当相対応力の計算
+    trial_relative_equivalent_stress = calc_equivalent_stress(trial_relative_stresses);
+
+    //弾性Dマトリクスの計算
+    generateElasticDMatrix(d_matrix);
+
+    //弾塑性Dマトリクスの計算
+    temp = -equivalent_plastic_strain_increment
+            * 6.0 * shear_modulus * shear_modulus / trial_relative_equivalent_stress;
+    
+    for(int i = 0; i < 3; i++)
+        d_matrix[i][i] += temp;
+    for(int i = 3; i < 6; i++)
+        d_matrix[i][i] += 0.5 * temp;
+    for(int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            d_matrix[i][j] -= temp / 3.0;
+    
+    coefficient
+        = 9.0 * shear_modulus * shear_modulus
+        * (equivalent_plastic_strain_increment / trial_relative_equivalent_stress
+           - 1.0 / (3.0 * shear_modulus + hardening_modulus))
+        / (trial_relative_equivalent_stress * trial_relative_equivalent_stress);
+    for (int i = 0; i < 6; i++)
+        for (int j = 0; j < 6; j++)
+            d_matrix[i][j]
+                += coefficient
+                *  trial_relative_deviatoric_stresses[i]
+                *  trial_relative_deviatoric_stresses[j];
+}
+
+//ペナルティ項用のコンシステント弾性Dマトリクスの計算
 void modify_d_matrix_with_finite_strain_for_PenaltyTerm(double (*c_matrix)[9], double (*d_matrix)[6], double *current_stresses, double *trial_elastic_strains, double (*current_deformation_gradient)[3]){
     double consistent_d_tensor[3][3][3][3];
     double F_invF[3][3][3][3];

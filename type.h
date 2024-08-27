@@ -15,13 +15,12 @@ typedef struct
     double R_first;         //R_maxの最大値
     double Error_NR;        //ニュートンラプソン法のエラー
     double norm_Fext;       //外力ベクトルのノルム
+    int solver_type;        //解く問題のタイプ
 
 } Option;
 
 typedef struct
 {
-    int material_type;                       //材料モデルも種類を選ぶフラグ
-    double rho;                              //材料の密度
     double E_mod;                            //ヤング率
     double nu_mod;                           //ポアソン比
     double penalty;                          //ペナルティパラメータ
@@ -55,6 +54,7 @@ typedef struct
 
     double **displacement;              //ポイントごとの変位
     double **displacement_increment;    //ポイントごとの変位の増分
+    double **previous_displacement_increment;   //前iterationの変位増分
 
     double *Global_K;                           //全体剛性マトリクス
     
@@ -73,6 +73,7 @@ typedef struct
     double **elastic_strains;                   //弾性ひずみ
     double **current_elastic_strains;           //現配置に対する弾性ひずみ
     double **trial_elastic_strains;             //試行弾性ひずみ
+    double **current_plastic_strains;           //塑性ひずみ
 
     double **stresses;                          //応力テンソル（フォークト表記）
     double **current_stresses;                  //現配置に対する応力

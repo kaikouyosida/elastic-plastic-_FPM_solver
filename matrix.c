@@ -338,6 +338,7 @@ void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_
 			Ne[i] /= (double)(vertex_offset[face + 1] - ref_offset - 2);
 	}
 }
+
 void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int subdomain2, double *current_point_XYZ){
 	int ref_num = global.subdomain.vertex_offset[face_n];
 	int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];
@@ -347,6 +348,7 @@ void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int sub
 	double edge1_cross_edge2[3];
 	double direction[3];
 	double area_norm;
+	int face_node[NUMBER_OF_NODE_IN_FACE];
 
 	//単位ベクトルの方向を決定＋単位法線ベクトルを初期化
 	for(int i = 0; i < option.dim; i++){
@@ -360,8 +362,19 @@ void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int sub
 
 	//四辺形を2つの三角形に分割→二つの法線ベクトルの平均をその面の法線ベクトルとして計算
 	for(int i = 0; i < 2; i++){
-		generate_current_edge_vector(edge1, subdomain1, node_id[2 * i + 1], node_id[2 * i], subdomain_node);
-		generate_current_edge_vector(edge2, subdomain1, node_id[(2 + i) % 3 + 1], node_id[2 * i], subdomain_node);
+
+		if(option.solver_type == 1){
+			generate_current_edge_vector(edge1, subdomain1, node_id[2 * i + 1], node_id[2 * i], subdomain_node);
+			generate_current_edge_vector(edge2, subdomain1, node_id[(2 + i) % 3 + 1], node_id[2 * i], subdomain_node);
+		}else{
+			for(int j = 0; j < NUMBER_OF_NODE_IN_FACE; j++){
+				face_node[j] = global.subdomain.node[global.subdomain.vertex_offset[face_n] + j];
+			}
+			for(int j = 0; j < option.dim; j++){
+				edge1[j] = global.subdomain.node_XYZ[option.dim * face_node[2 * i + 1] + j] - global.subdomain.node_XYZ[option.dim * face_node[2 * i] + j];
+				edge2[j] = global.subdomain.node_XYZ[option.dim * face_node[(2 + i) % 3 + 1] + j] - global.subdomain.node_XYZ[option.dim * face_node[2 * i] + j];
+			}
+		}
 
 		cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
 

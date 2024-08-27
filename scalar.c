@@ -101,8 +101,58 @@ double calc_subdomain_volume(int point_n){
     return volume;
 }
 
+double calc_initial_subdomain_volume(int point_n){
+    double volume = 0;
+    int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];
+    double center[3];
+    int face_node[NUMBER_OF_NODE_IN_FACE];
+    double edge1[3], edge2[3];
+    double node_to_center_edge[3];
+    double edge1crossedge2[3];
+
+    int N_face = global.subdomain.face_offset[point_n + 1] - global.subdomain.face_offset[point_n];
+
+    //サブドメインに含まれる頂点番号を格納
+    generate_subdomain_node(point_n, subdomain_node);
+
+    //サブドメイン重心を計算
+    for(int i = 0; i < option.dim; i++){
+        double center_i = 0.;
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            center_i += global.subdomain.node_XYZ[option.dim * subdomain_node[j] + i];
+        }
+        center[i] = center_i / 8.0;
+    }
+    
+    //辺ベクトルの計算
+    for(int i = 0; i < N_face; i++){
+        for(int j = 0; j < NUMBER_OF_NODE_IN_FACE; j++)
+            face_node[j] 
+                = global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.face[global.subdomain.face_offset[point_n] + i]] + j];
+        
+        for(int j = 0; j < option.dim; j++){
+            edge1[j] = global.subdomain.node_XYZ[option.dim * face_node[0] + j] - global.subdomain.node_XYZ[option.dim * face_node[1] + j];
+            edge2[j] = global.subdomain.node_XYZ[option.dim * face_node[2] + j] - global.subdomain.node_XYZ[option.dim * face_node[1] + j];
+            node_to_center_edge[j] = center[j] - global.subdomain.node_XYZ[option.dim * face_node[1] + j];
+        }
+        cross_product(option.dim, edge1, edge2, edge1crossedge2);
+        volume += fabs(dot_product(option.dim, edge1crossedge2, node_to_center_edge));
+
+        for(int j = 0; j < option.dim; j++){
+            edge1[j] = global.subdomain.node_XYZ[option.dim * face_node[2] + j] - global.subdomain.node_XYZ[option.dim * face_node[3] + j];
+            edge2[j] = global.subdomain.node_XYZ[option.dim * face_node[0] + j] - global.subdomain.node_XYZ[option.dim * face_node[3] + j];
+            node_to_center_edge[j] = center[j] - global.subdomain.node_XYZ[option.dim * face_node[3] + j];
+        }
+        cross_product(option.dim, edge1, edge2, edge1crossedge2);
+        volume += fabs(dot_product(option.dim, edge1crossedge2, node_to_center_edge));
+    }
+    volume /= 6.0;
+    
+    return volume;
+}
+
 //内部境界Γ*を物理座標→正規化座標にマッピングするためのパラメータを計算
-double calc_mapping_parameter_for_av_area(double face_node_XYZ[4][3], int s, int t, double *X){
+double calc_mapping_parameter_for_av_area(const double face_node_XYZ[4][3], int s, int t, double *X){
     double result = 0.;
     double area_vector[3];
     double dx_ds[3];
@@ -122,22 +172,31 @@ double calc_mapping_parameter_for_av_area(double face_node_XYZ[4][3], int s, int
 
 //内部境界Γ+とΓ-を物理座標→正規化座標にマッピングするためのパラメータを計算
 double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X){
-    double area_vector[3];                                    //エリアベクトルの計算
+    double area_vector[3];                                    //面積ベクトルの計算
     double dx_ds[3];                                          //微係数dx_h/dξ
     double dx_dt[3];                                          //微係数dx_h/dη
     double x1[3], x2[3], x3[3], x4[3];                        //頂点座標
     int node_id[NUMBER_OF_NODE_IN_FACE];                      //頂点番号のアドレス
     int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];          //サブドメイン中の節点番号
 
-    //ノード番号のアドレスを取得
-    generate_subdomain_node(point_n, subdomain_node);
-    generate_node_id(face_n, point_n, subdomain_node, node_id);
-    
-    for(int i = 0; i < option.dim; i++){
-        x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[0]][i];
-        x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[1]][i];
-        x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[2]][i];
-        x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[3]][i];
+    if(option.solver_type == 1){
+        //ノード番号のアドレスを取得
+        generate_subdomain_node(point_n, subdomain_node);
+        generate_node_id(face_n, point_n, subdomain_node, node_id);
+        
+        for(int i = 0; i < option.dim; i++){
+            x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[0]][i];
+            x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[1]][i];
+            x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[2]][i];
+            x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[3]][i];
+        }
+    }else{
+        for(int i = 0; i < option.dim; i++){
+            x1[i] = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[face_n]] + i];
+            x2[i] = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[face_n] + 1] + i];
+            x3[i] = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[face_n] + 2] + i];
+            x4[i] = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[face_n] + 3] + i];
+        }
     }
     
     //x_h = 1/4*(1-ξ*ξ_i)*(1-η*η_i)*x_iのξ, ηに対する微係数を計算.
@@ -284,4 +343,41 @@ double distance(int dim, int i, int j, double *point_xyz)
 	for (int k = 0; k < dim; k++)
 		d -= 2.0 * point_xyz[dim * i + k] * point_xyz[dim * j + k];
 	return sqrt(d);
+}
+
+//ひずみエネルギ密度のerrorを計算
+double generate_strain_energy_rate_parameter(int time_step){
+    double strain_sol[6];
+    double stress_sol[6];
+    double volume;
+    double volume_global = 1.0;
+    double strain_enrgy_rate = 0.;
+    double strain_enrgy_rate_sol = 0.;
+    double lamda;
+
+    lamda = (double)(time_step + 1) / (double)option.N_timestep;
+
+    //参照解の応力とひずみを計算
+    for(int i = 0; i < 6; i++){
+        strain_sol[i] = 0.; stress_sol[i] = 0.;
+    }
+    strain_sol[2] = 0.5 * log(9.0 / 4.0) * lamda; 
+    stress_sol[0] = 1.55948118503140 * 100.0 * lamda;
+    stress_sol[1] = 1.55948118503140 * 100.0 * lamda;
+    stress_sol[2] = 3.63878943173994 * 100.0 * lamda;
+
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        volume = calc_subdomain_volume(point);
+
+        for(int i = 0; i < 6; i++){
+            strain_enrgy_rate += (strain_sol[i] - global.subdomain.elastic_strains[point][i]) *(stress_sol[i] - global.subdomain.stresses[point][i]) * volume;
+        }
+    }
+
+    for(int i = 0; i < 6; i++){
+        strain_enrgy_rate_sol += strain_sol[i] * stress_sol[i];
+    }
+    strain_enrgy_rate_sol *= volume_global;
+
+    return sqrt(strain_enrgy_rate) / sqrt(strain_enrgy_rate_sol);
 }

@@ -87,27 +87,33 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
 void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
-    double *current_point_XYZ;
-
-    if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error: current_point_XYZ's memory is not enough\n");
-        exit(-1);
-    }
+    
     G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
 
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < option.dim; j++){
-            current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                                 + global.subdomain.displacement[i][j]
-                                                 + global.subdomain.displacement_increment[i][j];
-        }
-    }
+    if(option.solver_type == 1){
+        double *current_point_XYZ;
 
-    calc_G(option.dim, point_n, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
-    
-        double dn_dx_0_i = G[0][0];
-        double dn_dx_1_i = G[1][0];
-        double dn_dx_2_i = G[2][0];
+        if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+            printf("Error: current_point_XYZ's memory is not enough\n");
+            exit(-1);
+        }
+        for(int i = 0; i < global.subdomain.N_point; i++){
+            for(int j = 0; j < option.dim; j++){
+                current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                                                    + global.subdomain.displacement[i][j]
+                                                    + global.subdomain.displacement_increment[i][j];
+            }
+        }
+
+        calc_G(option.dim, point_n, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+
+        free(current_point_XYZ);
+    }else{
+        calc_G(option.dim, point_n, global.subdomain.point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+    }
+        const double dn_dx_0_i = G[0][0];
+        const double dn_dx_1_i = G[1][0];
+        const double dn_dx_2_i = G[2][0];
         
         b_t_matrix[0][0] = dn_dx_0_i;
         b_t_matrix[0][1] = 0.0;
@@ -131,9 +137,9 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
         b_t_matrix[2][5] = dn_dx_0_i;
 
         for(int i = 1; i < N_support + 1; i++){
-            double dn_dx_0_i = G[0][3 * i];
-            double dn_dx_1_i = G[1][3 * i];
-            double dn_dx_2_i = G[2][3 * i];
+            const double dn_dx_0_i = G[0][3 * i];
+            const double dn_dx_1_i = G[1][3 * i];
+            const double dn_dx_2_i = G[2][3 * i];
 
             b_t_matrix[option.dim * i][0] = dn_dx_0_i;
             b_t_matrix[option.dim * i][1] = 0.0;
@@ -158,7 +164,6 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
         }
 
     free_matrix(G);
-    free(current_point_XYZ);
 }
 
 //Bマトリクスの計算
@@ -206,14 +211,14 @@ double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
 void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *support_offset, double (*shapeF_t)[3])
 {
     int N_support = support_offset[point_n + 1] - support_offset[point_n]; // サポートドメインの数
-    double h[3];
-    double **G;
-    double **shapeF;
+    double h[3];            //ポイント間距離
+    double **G;             //変位勾配マトリクス
+    double **shapeF;        //形状関数
 
-    G = matrix(9, option.dim * global.subdomain.N_point + option.dim);
-    shapeF = matrix(option.dim, option.dim * N_support + option.dim);
-
+    G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
+    shapeF = matrix(option.dim, option.dim * (N_support + 1));
     calc_G(dim, point_n, point_xyz, global.subdomain.support_offset, global.subdomain.support, G);
+
     for (int i = 0; i < dim; i++)
         h[i] = xyz[i] - point_xyz[dim * point_n + i];
 
@@ -238,7 +243,7 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     free_matrix(G);
 }
 
-void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
+void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h, int pm){
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double **G;
     double *u;
@@ -250,10 +255,20 @@ void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h){
         exit(-1);
     }
 
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < option.dim; j++){
-            u[option.dim * i + j] = global.subdomain.displacement[i][j] + global.subdomain.displacement_increment[i][j];
+    if(pm == 0){
+        for(int i = 0; i < global.subdomain.N_point; i++){
+            for(int j = 0; j < option.dim; j++){
+                u[option.dim * i + j] = global.subdomain.displacement[i][j] + global.subdomain.displacement_increment[i][j];
+            }
         }
+    }else if(pm == 1){
+        for(int i = 0; i < global.subdomain.N_point; i++){
+            for(int j = 0; j < option.dim; j++){
+                u[option.dim * i + j] = global.subdomain.displacement_increment[i][j];
+            }
+        }
+    }else{
+        printf("Undefined number.");
     }
 
     G = matrix(option.dim * option.dim, option.dim * (N_support + 1));

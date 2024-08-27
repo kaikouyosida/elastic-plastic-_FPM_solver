@@ -10,5 +10,5 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
 //サブドメイン番号point_nの形状関数を計算
 void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *support_offset, double (*shapeF_t)[3]);
 
-//サブドメイン番号point_nの試行関数を計算
-void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h);
+//サブドメイン番号point_nの試行関数を計算(pmのときは変位, 1のときは変位増分を計算)
+void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h, int pm);

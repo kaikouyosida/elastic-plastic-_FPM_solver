@@ -106,7 +106,7 @@ void generate_current_node_of_face(double face_node_XYZ[4][3], int face_n, int p
 //サブドメインがもつ節点の番号を格納する
 void generate_subdomain_node(int point_n, int subdomain_node[8]){
     for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
-        subdomain_node[i] = global.subdomain.subdomain_node[8 * point_n + i];
+        subdomain_node[i] = global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point_n + i];
     }
 }
 
