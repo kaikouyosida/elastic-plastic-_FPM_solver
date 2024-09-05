@@ -5,7 +5,7 @@ void sortVector(double *vector, const int num);
 void reverseVector(double *vector, const int num);
 
 //ベクトルのアセンブル
-void assemble_vector(int point_n, double **global_vecter, double *element_vector);
+void assemble_vector(int point_n, double **global_vecter, const double *element_vector);
 
 //頂点2から頂点1に伸びるベクトルの生成
 void generate_current_node_vector(int node_1, int node_2, double *vector);
@@ -26,4 +26,4 @@ void generate_subdomain_node(int point_n, int subdomain_node[8]);
 void generate_node_id(int face_n, int point_n, int subdomain_node[8], int node_id[4]);
 
 //物理座標におけるガウス点の座標を計算
-void generate_gauss_point_coordinate(int s, int t, double face_node_XYZ[4][3], double *X, double xyz[3]);
+void generate_gauss_point_coordinate(const int s, const int t, const double face_node_XYZ[4][3], const double *X, double xyz[3]);

@@ -51,7 +51,7 @@ void generateElasticDMatrix(double (*d_matrix)[6]){
 }
 
 //コンシステント弾性Dマトリクスの計算
-void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], double *current_stresses, double *trial_elastic_strains, double (*current_deformation_gradient)[3]){
+void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], const double *current_stresses, const double *trial_elastic_strains, double (*current_deformation_gradient)[3]){
     double consistent_d_tensor[3][3][3][3];
     double d_tensor[3][3][3][3];
     double l_tensor[3][3][3][3];

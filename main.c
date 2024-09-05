@@ -4,7 +4,7 @@
 #include"type.h"
 #include"fpm.h"
 #include"Output_data.h"
-
+#include"matrix.h"
 
 Global global;
 Option option;
@@ -18,10 +18,9 @@ int main(){
 
     
     Init_model();
-    //calc_extract_component();
-    //exit(0);
     option.solver_type = 2;
-    
+    calc_extract_component();
+    exit(0);
     switch(option.solver_type){
         case NON_LINEAR_SOLVER:
             analize_by_NewtonRaphson();

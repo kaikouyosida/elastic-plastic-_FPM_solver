@@ -8,8 +8,7 @@
 extern Global global;
 extern Option option;
 
-void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *support, double **G)
-{
+void calc_G(const int dim, const int point_n, const double *point_xyz, const int *support_offset, const int *support, double **G){
     double **A;
     double **AT;
     double **ATA;
@@ -71,10 +70,8 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
         }
     }
 
-    for (int i = 0; i < dim; i++)
-    {
-        for (int j = 0; j < dim; j++)
-        {
+    for (int i = 0; i < dim; i++){
+        for (int j = 0; j < dim; j++){
             for (int k = 0; k < N_support + 1; k++)
                 G[dim * i + j][dim * k + i] = G1[j][k];
         }
@@ -84,7 +81,7 @@ void calc_G(int dim, int point_n, double *point_xyz, int *support_offset, int *s
     free_matrix(A);
 }
 
-void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
+void generate_linear_b_matrix(double (*b_t_matrix)[6], const int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     
@@ -111,30 +108,30 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
     }else{
         calc_G(option.dim, point_n, global.subdomain.point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
     }
-        const double dn_dx_0_i = G[0][0];
-        const double dn_dx_1_i = G[1][0];
-        const double dn_dx_2_i = G[2][0];
+        const double dn_dx_0_0 = G[0][0];
+        const double dn_dx_1_0 = G[1][0];
+        const double dn_dx_2_0 = G[2][0];
         
-        b_t_matrix[0][0] = dn_dx_0_i;
+        b_t_matrix[0][0] = dn_dx_0_0;
         b_t_matrix[0][1] = 0.0;
         b_t_matrix[0][2] = 0.0;
-        b_t_matrix[0][3] = dn_dx_1_i;
+        b_t_matrix[0][3] = dn_dx_1_0;
         b_t_matrix[0][4] = 0.0;
-        b_t_matrix[0][5] = dn_dx_2_i;
+        b_t_matrix[0][5] = dn_dx_2_0;
 
         b_t_matrix[1][0] = 0.0;
-        b_t_matrix[1][1] = dn_dx_1_i;
+        b_t_matrix[1][1] = dn_dx_1_0;
         b_t_matrix[1][2] = 0.0;
-        b_t_matrix[1][3] = dn_dx_0_i;
-        b_t_matrix[1][4] = dn_dx_2_i;
+        b_t_matrix[1][3] = dn_dx_0_0;
+        b_t_matrix[1][4] = dn_dx_2_0;
         b_t_matrix[1][5] = 0.0;
 
         b_t_matrix[2][0] = 0.0;
         b_t_matrix[2][1] = 0.0;
-        b_t_matrix[2][2] = dn_dx_2_i;
+        b_t_matrix[2][2] = dn_dx_2_0;
         b_t_matrix[2][3] = 0.0;
-        b_t_matrix[2][4] = dn_dx_1_i;
-        b_t_matrix[2][5] = dn_dx_0_i;
+        b_t_matrix[2][4] = dn_dx_1_0;
+        b_t_matrix[2][5] = dn_dx_0_0;
 
         for(int i = 1; i < N_support + 1; i++){
             const double dn_dx_0_i = G[0][3 * i];
@@ -167,7 +164,7 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], int point_n){
 }
 
 //Bマトリクスの計算
-double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
+double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], const int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double *latest_point_XYZ;
@@ -207,10 +204,10 @@ double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], int point_n){
         }
 }
 
-// 形状関数を計算 //
-void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *support_offset, double (*shapeF_t)[3])
+// 形状関数を計算//
+void calc_shape(const double *xyz, const int dim, const int point_n, const double *point_xyz, const int *support_offset, double (*shapeF_t)[3])
 {
-    int N_support = support_offset[point_n + 1] - support_offset[point_n]; // サポートドメインの数
+    const int N_support = support_offset[point_n + 1] - support_offset[point_n]; // サポートドメインの数
     double h[3];            //ポイント間距離
     double **G;             //変位勾配マトリクス
     double **shapeF;        //形状関数
@@ -222,13 +219,11 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     for (int i = 0; i < dim; i++)
         h[i] = xyz[i] - point_xyz[dim * point_n + i];
 
-    for (int i = 0; i < dim; i++)
-    {
-        for (int j = 0; j < N_support + 1; j++)
-        {
-            shapeF[i][dim * j + i] = h[0] * G[dim * i][dim * j + i];
-            for (int k = 1; k < dim; k++)
+    for (int i = 0; i < dim; i++){
+        for (int j = 0; j < N_support + 1; j++){
+            for(int k = 0; k < option.dim; k++){
                 shapeF[i][dim * j + i] += h[k] * G[dim * i + k][dim * j + i];
+            }
         }
     }
     for (int i = 0; i < dim; i++)
@@ -243,11 +238,11 @@ void calc_shape(double *xyz, int dim, int point_n, double *point_xyz, int *suppo
     free_matrix(G);
 }
 
-void trial_u(double *xyz, int point_n, double *point_XYZ, double *u_h, int pm){
+//試行関数の計算 (pm = 0 or 1で変位と変位増分の試行関数を計算)
+void trial_u(const double *xyz, const int point_n, const double *point_XYZ, double *u_h, const int pm){
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double **G;
     double *u;
-    double shapeF[3][60];
     double shapeF_t[60][3];
 
     if((u = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){

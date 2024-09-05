@@ -57,7 +57,7 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
 }
 
 //残差ベクトルにディリクレ条件を反映
-void ImposeDirichretResidual(int iteration_step)
+void ImposeDirichretResidual(const int iteration_step)
 {
     int count = 0;                                         //カウンタ
     int DoF_free = option.dim * global.subdomain.N_point;  // 拘束を考慮しない自由度

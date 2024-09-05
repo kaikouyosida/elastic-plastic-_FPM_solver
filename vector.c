@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include<stdlib.h>
 #include<math.h>
 
 #include"type.h"
@@ -23,13 +24,13 @@ void reverseVector(double *vector, const int num){
         swapReals(&vector[i], &vector[num - 1 - i]);
 }
 
-void assemble_vector(int point_n, double **global_vecter, double *element_vector){
+void assemble_vector(int point_n, double **global_vecter, const double *element_vector){
     int support[60];        //サポート番号
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n]; 
-
+   
     for(int i = 0; i < N_support; i++)
         support[i] = global.subdomain.support[global.subdomain.support_offset[point_n] + i];
-
+    
     for(int i = 0; i < N_support; i++){
         for(int j = 0; j < option.dim; j++){
             global_vecter[support[i]][j] += element_vector[option.dim * (i + 1) + j];
@@ -120,7 +121,7 @@ void generate_node_id(int face_n, int point_n, int subdomain_node[8], int node_i
 }
 
 //物理座標におけるガウス点の座標を計算
-void generate_gauss_point_coordinate(int s, int t, double face_node_XYZ[4][3], double *X, double xyz[3]){
+void generate_gauss_point_coordinate(const int s, const int t, const double face_node_XYZ[4][3], const double *X, double xyz[3]){
     for(int i = 0; i < option.dim; i++)
         xyz[i] = 0.25 * (1.0 - X[s]) * (1.0 - X[t]) * face_node_XYZ[0][i]
                 + 0.25 * (1.0 - X[s]) * (1.0 + X[t]) * face_node_XYZ[1][i]

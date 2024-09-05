@@ -18,7 +18,7 @@ void update_external_force(int time){
     FILE *fp_debug;
     char FILE_name[128];
 
-    int N_qu = 1;                           //積分点数
+    const int N_qu = 1;                     //積分点数
     double xyz[3];                          //積分点の座標
     double t_force[3];                      //トラクションのベクトル    
     double NT[60][3];                       //形状関数
@@ -32,11 +32,11 @@ void update_external_force(int time){
     lambda = ((double)time + 1.0) / (double)option.N_timestep;
     
     //外力ベクトルをゼロ処理
-        for(int i = 0; i < global.subdomain.N_point; i++){
-            for(int j = 0; j < option.dim; j++){
-                global.subdomain.global_external_force[i][j] = 0.;
-            }
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        for(int j = 0; j < option.dim; j++){
+            global.subdomain.global_external_force[i][j] = 0.;
         }
+    }
 
     //形状関数を計算するためのpoint現在座標を計算
     if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
@@ -101,12 +101,11 @@ void update_external_force(int time){
                     }
                     subdomain_external_force[i] = subdomain_external_force_i * mapping_parameter * w[s] * w[t] * lambda;
                 }
-                
+
+                //要素ごとの外力ベクトルを全体の外力ベクトルにアセンブル
+                assemble_vector(global.bc.traction_point[face], global.subdomain.global_external_force, subdomain_external_force);
             }
         }
-
-        //要素ごとの外力ベクトルを全体の外力ベクトルにアセンブル
-        assemble_vector(global.bc.traction_point[face], global.subdomain.global_external_force, subdomain_external_force);
         
     }
 

@@ -1,5 +1,5 @@
 //残差ベクトルにDirichlet条件を付与
-void ImposeDirichretResidual(int NR_step);
+void ImposeDirichretResidual(const int NR_step);
 
 //係数マトリクスにDirichlet条件を付与
 void ImposeDirichletTangentialMatrix();

@@ -93,144 +93,67 @@ void zeroize3x3Matrix(double (*matrix)[3])
     matrix[2][2] = 0.0;
 }
 
-// 正則行列の逆行列をガウスの消去法で計算 //
-void inverse_mat3x3(int dim, double (*A)[3], double (*inverse_A)[3]){
-	double **B;       // Aの成分をコピーして、計算に用いる行列
-  int max_j = 0;    // ピボット選択で用いる補助変数
-	double tmp = 0.;  // ピボット選択で用いる補助変数
-	B = matrix(dim,dim);
-	for(int i=0;i<dim;i++){
-		for(int j=0;j<dim;j++) B[i][j] = A[i][j];
-	}
-
-	for(int i=0;i<dim;i++){
-		for(int j=0;j<dim;j++){
-			if(j==i) inverse_A[i][j] = 1.0;
-			else inverse_A[i][j] = 0.0;
-		}
-	}
-
-  // 部分ピボット選択 //
-	for(int l=0;l<dim;l++){
-		max_j = l;
-		for(int i=l;i<dim;i++){
-			if(fabs(B[l][l]) < fabs(B[i][l])){
-				max_j = i;
-			}
-		}
-		if(max_j != l){
-			for(int j=l;j<dim;j++){
-				tmp = B[l][j];
-				B[l][j] = B[max_j][j];
-				B[max_j][j] = tmp;
-
-				tmp = inverse_A[l][j];
-				inverse_A[l][j] = inverse_A[max_j][j];
-				inverse_A[max_j][j] = tmp;
-			}
-		}
-
-		for(int j=0;j<l;j++) inverse_A[l][j] /= B[l][l];
-		for(int j=dim-1;j>l-1;j--){
-			inverse_A[l][j] /= B[l][l];
-			B[l][j] /= B[l][l];
-		}
-		for(int i=l+1;i<dim;i++){
-			for(int j=0;j<l+1;j++) inverse_A[i][j] -= B[i][l]*inverse_A[l][j];
-			for(int j=l+1;j<dim;j++){
-				B[i][j] -= B[i][l]*B[l][j];
-				inverse_A[i][j] -= B[i][l]*inverse_A[l][j];
-			}
-		}
-	}
-
-	for(int l=dim-1;l>-1;l--){
-		for(int i=l-1;i>-1;i--){
-			for(int j=0;j<dim;j++) inverse_A[i][j] -= B[i][l]*inverse_A[l][j];
-		}
-	}
-
-	free_matrix(B);
-}
-
 // Am行AnBm列の行列とAnBm行Bn列の行列の積をXに保存 //
 void multi_mat(int Am, int Bn, double** A, double** B, int AnBm, double** X){
-	for(int i=0;i<Am;i++){
-		for(int j=0;j<Bn;j++) X[i][j] = 0.;
+	for(int i = 0; i < Am; i++){
+		for(int j = 0; j < Bn; j++)
+			X[i][j] = 0.;
 	}
 
-	for(int i=0;i<Am;i++){
-		for(int j=0;j<Bn;j++){
-			for(int k=0;k<AnBm;k++) X[i][j] += A[i][k]*B[k][j];
+	for(int i = 0; i < Am; i++){
+		for(int j = 0; j < Bn; j++){
+			for(int k = 0; k < AnBm; k++)
+				X[i][j] += A[i][k] * B[k][j];
 		}
 	}
 }
 
 // m行n列の行列Xの転置行列をXTに保存 //
 void trans_mat(int m, int n, double** X, double** XT){
-  for(int i=0;i<n;i++){
-		for(int j=0;j<m;j++) XT[i][j] = X[j][i];
+  for(int i = 0; i < n; i++){
+		for(int j = 0; j < m; j++)
+			XT[i][j] = X[j][i];
 	}
 }
 
 // 正則行列の逆行列をガウスの消去法で計算 //
 void inverse_mat(int mn, double** A, double** inverse_A){
-	double **B;       // Aの成分をコピーして、計算に用いる行列
-  int max_j = 0;    // ピボット選択で用いる補助変数
-	double tmp = 0.;  // ピボット選択で用いる補助変数
-	B = matrix(mn,mn);
-	for(int i=0;i<mn;i++){
-		for(int j=0;j<mn;j++) B[i][j] = A[i][j];
-	}
+	double **aug;
+	aug = matrix(mn, 2 * mn);
 
-	for(int i=0;i<mn;i++){
-		for(int j=0;j<mn;j++){
-			if(j==i) inverse_A[i][j] = 1.0;
-			else inverse_A[i][j] = 0.0;
+	for(int i = 0; i < mn; i++){
+		for(int j = 0; j < mn; j++){
+			aug[i][j] = A[i][j];
+			aug[i][j + mn] = (i == j) ? 1 : 0;
 		}
 	}
-
-  // 部分ピボット選択 //
-	for(int l=0;l<mn;l++){
-		max_j = l;
-		for(int i=l;i<mn;i++){
-			if(fabs(B[l][l]) < fabs(B[i][l])){
-				max_j = i;
-			}
-		}
-		if(max_j != l){
-			for(int j=l;j<mn;j++){
-				tmp = B[l][j];
-				B[l][j] = B[max_j][j];
-				B[max_j][j] = tmp;
-
-				tmp = inverse_A[l][j];
-				inverse_A[l][j] = inverse_A[max_j][j];
-				inverse_A[max_j][j] = tmp;
-			}
-		}
-
-		for(int j=0;j<l;j++) inverse_A[l][j] /= B[l][l];
-		for(int j=mn-1;j>l-1;j--){
-			inverse_A[l][j] /= B[l][l];
-			B[l][j] /= B[l][l];
-		}
-		for(int i=l+1;i<mn;i++){
-			for(int j=0;j<l+1;j++) inverse_A[i][j] -= B[i][l]*inverse_A[l][j];
-			for(int j=l+1;j<mn;j++){
-				B[i][j] -= B[i][l]*B[l][j];
-				inverse_A[i][j] -= B[i][l]*inverse_A[l][j];
-			}
-		}
+	//対角要素を１にする
+	for(int i = 0; i < mn; i++){
+		double diag = aug[i][i];
+        if (diag == 0){
+            printf("Inverse matrix is not exist!\n");
+            exit(-1);
+        }
+        for (int j = 0; j < 2 * mn; j++) {
+            aug[i][j] /= diag;
+        }
+		// 他の行の該当列を0にする
+        for (int k = 0; k < mn; k++) {
+            if (k != i) {
+                double factor = aug[k][i];
+                for (int j = 0; j < 2 * mn; j++) {
+                    aug[k][j] -= factor * aug[i][j];
+                }
+            }
+        }
 	}
-
-	for(int l=mn-1;l>-1;l--){
-		for(int i=l-1;i>-1;i--){
-			for(int j=0;j<mn;j++) inverse_A[i][j] -= B[i][l]*inverse_A[l][j];
-		}
-	}
-
-	free_matrix(B);
+	// 逆行列を取り出す
+    for (int i = 0; i < mn; i++) {
+        for (int j = 0; j < mn; j++) {
+            inverse_A[i][j] = aug[i][j + mn];
+        }
+    }
+	free_matrix(aug);
 }
 
 //３×３マトリクスの二重積
@@ -339,7 +262,7 @@ void calc_Ne(int dim, int subdomain_n1, int subdomain_n2, int face, int *vertex_
 	}
 }
 
-void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int subdomain2, double *current_point_XYZ){
+void calc_unit_vector(double unit_vector[3], const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ){
 	int ref_num = global.subdomain.vertex_offset[face_n];
 	int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];
 	int node_id[NUMBER_OF_NODE_IN_FACE];
@@ -357,8 +280,10 @@ void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int sub
 	}
 	
 	//face_nにおけるノード番号のアドレスを取得
-	generate_subdomain_node(subdomain1, subdomain_node);
-	generate_node_id(face_n, subdomain1, subdomain_node, node_id);
+	if(option.solver_type == 1){
+		generate_subdomain_node(subdomain1, subdomain_node);
+		generate_node_id(face_n, subdomain1, subdomain_node, node_id);
+	}
 
 	//四辺形を2つの三角形に分割→二つの法線ベクトルの平均をその面の法線ベクトルとして計算
 	for(int i = 0; i < 2; i++){
@@ -370,6 +295,7 @@ void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int sub
 			for(int j = 0; j < NUMBER_OF_NODE_IN_FACE; j++){
 				face_node[j] = global.subdomain.node[global.subdomain.vertex_offset[face_n] + j];
 			}
+			
 			for(int j = 0; j < option.dim; j++){
 				edge1[j] = global.subdomain.node_XYZ[option.dim * face_node[2 * i + 1] + j] - global.subdomain.node_XYZ[option.dim * face_node[2 * i] + j];
 				edge2[j] = global.subdomain.node_XYZ[option.dim * face_node[(2 + i) % 3 + 1] + j] - global.subdomain.node_XYZ[option.dim * face_node[2 * i] + j];
@@ -395,7 +321,7 @@ void calc_unit_vector(double unit_vector[3], int face_n, int subdomain1, int sub
 		unit_vector[i] /= 2.0;
 }
 
-void generate_unit_vec_to_mat3x6(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[6]){
+void generate_unit_vec_to_mat3x6(const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ, double (*N_matrix)[6]){
 	double Ne[3];
 	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
 	N_matrix[0][0] = Ne[0];	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];		N_matrix[0][4] = 0.0;		N_matrix[0][5] = Ne[2];

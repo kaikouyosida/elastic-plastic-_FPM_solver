@@ -5,7 +5,7 @@
 extern Option option;
 
 void generateSMatrix(double s_matrix[9][9],
-                     double current_stresses[6])
+                     const double current_stresses[6])
 {
     //Sマトリクスのゼロ処理
     #if 0

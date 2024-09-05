@@ -33,7 +33,7 @@ void Output_data(int time_step){
     for(int i = 0; i < global.subdomain.N_point; i++){
         fprintf(fp_deformation, "%7d    ", i);
         for(int j = 0; j < option.dim; j++)
-            fprintf(fp_deformation, "%+15.14e    ", global.subdomain.displacement[i][j] + global.subdomain.displacement_increment[i][j]);
+            fprintf(fp_deformation, "%+15.14e    ", global.subdomain.displacement[i][j]);
         fprintf(fp_deformation, "\n");
     }
     fclose(fp_deformation);
@@ -48,7 +48,7 @@ void Output_data(int time_step){
     for(int i = 0; i < global.subdomain.N_point; i++){
         fprintf(fp_stress, "%7d    ", i);
         for(int j = 0; j < 6; j++)
-            fprintf(fp_stress, "%+15.14e    ", global.subdomain.current_stresses[i][j]);
+            fprintf(fp_stress, "%+15.14e    ", global.subdomain.stresses[i][j]);
         fprintf(fp_stress, "\n");
     }
     fclose(fp_stress);
@@ -63,7 +63,7 @@ void Output_data(int time_step){
     for(int i = 0; i < global.subdomain.N_point; i++){
         fprintf(fp_strain, "%7d    ", i);
         for(int j = 0; j < 6; j++)
-            fprintf(fp_strain, "%+15.14e    ", global.subdomain.current_elastic_strains[i][j]);
+            fprintf(fp_strain, "%+15.14e    ", global.subdomain.elastic_strains[i][j]);
         fprintf(fp_strain, "\n");
     }
     fclose(fp_strain);
@@ -99,6 +99,18 @@ void Output_data(int time_step){
         fprintf(fp_strain, "\n");
     }
     fclose(fp_strain);
+
+    snprintf(FILE_name, 128, "Data_Files_Output/Output_yield_stress%d.dat", time_step);
+    fp_stress = fopen(FILE_name, "w");
+    if(fp_stress == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_stress, "point num / yield stress\n");
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_stress, "%7d    %+15.14e\n", i, global.subdomain.yield_stresses[i]);
+    }
+    fclose(fp_stress);
 
     if(option.solver_type == 1){
         snprintf(FILE_name, 128, "Data_Files_Output/Output_deformation_gradient_time%d.dat", time_step);
@@ -138,13 +150,14 @@ void Output_data(int time_step){
 void calc_extract_component(){
     FILE *fp_extract;
     char ss[128];
-    double stress[1000][6];
-    double strain[1000][6];
-    double u[1000][3];
+    double stress[10000][6];
+    double strain[10000][6];
+    double u[10000][3];
     double d_matrix[6][6];
     double equivarent_stress[10000];
+    double yield_stress[10000];
     double nodal_equivarent_stress[10000];
-
+   
     fp_extract = fopen("Data_Files_Output/Output_cauchy_stress_time49.dat", "r");
     if(fp_extract == NULL){
         printf("File is not open\n");
@@ -160,7 +173,6 @@ void calc_extract_component(){
         fscanf(fp_extract, "\n");
     }
     fclose(fp_extract);
-
     fp_extract = fopen("Data_Files_Output/Output_Plastic_strain_time49.dat", "r");
     if(fp_extract == NULL){
         printf("File is not enough\n");
@@ -191,21 +203,33 @@ void calc_extract_component(){
         fscanf(fp_extract, "\n");
     }
     fclose(fp_extract);
-    #if 0
+
+    fp_extract = fopen("Data_Files_Output/Output_yield_stress49.dat", "r");
+    if(fp_extract == NULL){
+        printf("Error:File is not open\n");
+        exit(-1);
+    }
+    fscanf(fp_extract, "%*[^\n]\n", ss);
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fscanf(fp_extract, "%*d %lf\n", &yield_stress[i]);
+    }
+    fclose(fp_extract);
+
+    #if 1
     for(int i = 0; i < global.subdomain.N_point; i++){
         double hydro_static_pressure = 1.0 / 3.0 * (stress[i][0] + stress[i][1] + stress[i][2]);
         if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
-            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], hydro_static_pressure);
+            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], stress[i][1] - hydro_static_pressure);
         }
     }
     #endif
-    #if 1
+    #if 0
     for(int i = 0; i < global.subdomain.N_point; i++){
-        equivarent_stress[i] = calc_equivalent_stress(strain[i]);
+        equivarent_stress[i] = calc_equivalent_stress(stress[i]);
     }
     for(int i = 0; i < global.subdomain.N_point; i++){
         if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
-            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], equivarent_stress[i]);
+            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i],  equivarent_stress[i] / yield_stress[i]);
         }
     }
     #endif

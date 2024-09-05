@@ -400,7 +400,7 @@ void calc_internal_force_volume(double **current_stress){
 void calc_internal_force_penalty(double **all_stress)
 {
     FILE *fp_debug_fint;            
-    int N_qu = 1;
+    const int N_qu = 1;
     double sign;                                                //項の符号
     double X[27], w[27];                                        //ガウス求積に使う正規化座標と重み関数
     double xyz[3];                                              //求積点の座標
@@ -433,7 +433,6 @@ void calc_internal_force_penalty(double **all_stress)
         }
     }
     
-
     //gaussポイントの座標と重みを計算
     Gauss_points_and_weighting_factors(N_qu, X, w);
     
@@ -444,7 +443,7 @@ void calc_internal_force_penalty(double **all_stress)
             generate_unit_vec_to_mat3x6(global.subdomain.shared_face[face], global.subdomain.pair_point_ib[2 * face + i], global.subdomain.pair_point_ib[2 * face + (i + 1) % 2], current_point_XYZ, Ne);
             
             for(int j = 0; j < 2; j++){
-                int N_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j] + 1] - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j]];
+                const int N_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j] + 1] - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j]];
 
                 //ペナルティ項の符号
                 if((i + j) % 2 == 0){
@@ -457,10 +456,10 @@ void calc_internal_force_penalty(double **all_stress)
                 if(option.solver_type == 1){
                     generate_current_node_of_face(face_node_XYZ, global.subdomain.shared_face[face], global.subdomain.pair_point_ib[2 * face + i]);
                 }else{
-                    for(int i = 0; i < NUMBER_OF_NODE_IN_FACE; i++){
-                        for(int j = 0; j < option.dim; j++){
-                            face_node_XYZ[i][j] 
-                                = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.shared_face[face]] + i] + j];
+                    for(int a = 0; a < NUMBER_OF_NODE_IN_FACE; a++){
+                        for(int b = 0; b < option.dim; b++){
+                            face_node_XYZ[a][b] 
+                                = global.subdomain.node_XYZ[option.dim * global.subdomain.node[global.subdomain.vertex_offset[global.subdomain.shared_face[face]] + a] + b];
                         }
                     }
                 }
@@ -521,7 +520,7 @@ void calc_internal_force_penalty_stabilization(){
     double mapping_parameter;                                   //物理座標→正規化座標へのマッピングに要するパラメータ
     double *current_point_XYZ;                                  //ポイントの現在の座標
     double he;                                                  //ポイント間の距離
-    double eta = global.material.penalty;                       //ペナルティパラメータ
+    const double eta = global.material.penalty;                 //ペナルティパラメータ
 
     //形状関数を計算するためのpoint, nodeにおける現配置の座標を計算
     if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
@@ -532,8 +531,8 @@ void calc_internal_force_penalty_stabilization(){
       for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < option.dim; j++){
                 current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j];
-                                            + global.subdomain.displacement[i][j]
-                                            + global.subdomain.displacement_increment[i][j];
+                                                    + global.subdomain.displacement[i][j]
+                                                    + global.subdomain.displacement_increment[i][j];
             }
         }  
     }else{
@@ -543,15 +542,14 @@ void calc_internal_force_penalty_stabilization(){
             }
         }
     }
-    
 
     //gauss積分点の座標を計算
     Gauss_points_and_weighting_factors(N_qu, X, w);
-
+    
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         //ポイント間の距離を計算
         he = distance(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1], current_point_XYZ);
-
+        
         //Γ*の頂点の座標を計算（Γ+とΓ-の平均を計算）
         if(option.solver_type == 1){
             generate_current_node_of_face(face_node_XYZ1, global.subdomain.shared_face[face], global.subdomain.pair_point_ib[2 * face]);
@@ -584,7 +582,7 @@ void calc_internal_force_penalty_stabilization(){
 
                 for(int s = 0; s < N_qu; s++){
                     for(int t = 0; t < N_qu; t++){
-                        //物理空間座標→正規化座標に変換するためのスカラー値を計算
+                        //物理空間座標→正規化座標に変換するためのスカラー値を計算(Γ*の面積変化率を計算する)
                         mapping_parameter = calc_mapping_parameter_for_av_area(face_node_XYZ, s, t, X);
 
                         //物理座標におけるガウス点の座標を計算
@@ -602,12 +600,12 @@ void calc_internal_force_penalty_stabilization(){
                             for(int l = 0; l < option.dim; l++){
                                 subdomain_internal_force_k += NT[k][l] * u_h[l];
                             }
-                            subdomain_internal_force[k] = sign * subdomain_internal_force_k * mapping_parameter * w[s] * w[t];
+                            subdomain_internal_force[k] = sign * eta / he * subdomain_internal_force_k * mapping_parameter * w[s] * w[t];
                         }
+                        //全体剛性マトリクスにアセンブリ
+                        assemble_vector(global.subdomain.pair_point_ib[2 * face + j], global.subdomain.global_internal_force, subdomain_internal_force);
                     }
                 }
-                //全体剛性マトリクスにアセンブリ
-                assemble_vector(global.subdomain.pair_point_ib[2 * face + j], global.subdomain.global_internal_force, subdomain_internal_force);
             }
         }
 
@@ -636,7 +634,6 @@ double calc_global_force_residual_norm(int iteration_step){
 
     if(fabs(global_f_norm) <= 1.0e-10){
         return global_r_norm / temp;
-        
     }else{
         return global_r_norm / global_f_norm;
     }
@@ -720,7 +717,6 @@ void update_field_and_internal_infinitesimal(){
         
         //von-mises応力の計算
         trial_relative_equivalent_stress = calc_equivalent_stress(trial_relative_stresses);
-        
 
         if (trial_relative_equivalent_stress <= (*yield_stress)){
             *equivalent_plastic_strain_increment = 0.0;
@@ -749,7 +745,7 @@ void update_field_and_internal_infinitesimal(){
             trial_relative_stresses[1] -= current_relative_hydrostatic_stress;
             trial_relative_stresses[2] -= current_relative_hydrostatic_stress;
 
-            //最終的な弾性ひずみの計算（下段の×２はvoigt表記？）
+            //最終的な弾性ひずみの計算（下段の×２はvoigt表記）
             factor
                 = (*equivalent_plastic_strain_increment)
                 * 1.5
@@ -893,9 +889,7 @@ void increment_field(){
         global.subdomain.equivalent_plastic_strains[point] += global.subdomain.equivalent_plastic_strain_increments[point];
         global.subdomain.equivalent_plastic_strain_increments[point] = 0.;
 
-        global.subdomain.yield_stresses[point] = global.subdomain.current_yield_stresses[point];
-
-                
+        global.subdomain.yield_stresses[point] = global.subdomain.current_yield_stresses[point];        
     }
 
     for(int node = 0; node < global.subdomain.N_node; node++){

@@ -252,11 +252,11 @@ void infinitesimal_analization(){
         }
 
         fclose(fp_residual);
-        
+        increment_field();
+
         if((time_step + 1) % option.time_output == 0)
             Output_data(time_step);
-        
-        increment_field();
+
         if((time_step + 1) % option.time_output == 0){
 
             //出力用の節点変位の計算
@@ -265,7 +265,7 @@ void infinitesimal_analization(){
             //paraviewデータの出力
             paraview_node_data(time_step);
         }
-        #if 1
+        #if 0
         if(time_step == 0){
             fp_debug = fopen("Yield_stress_vs_plastic_strain_elemtn_1.dat", "w");
             if(fp_debug == NULL){

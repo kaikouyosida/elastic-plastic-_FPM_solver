@@ -111,7 +111,7 @@ double calc_initial_subdomain_volume(int point_n){
     double edge1crossedge2[3];
 
     int N_face = global.subdomain.face_offset[point_n + 1] - global.subdomain.face_offset[point_n];
-
+    
     //サブドメインに含まれる頂点番号を格納
     generate_subdomain_node(point_n, subdomain_node);
 
