@@ -15,12 +15,10 @@ SS_CURVE ss_curve;
 #define LINEAR_SOLVER 3
 
 int main(){
-
     
     Init_model();
-    option.solver_type = 2;
-    calc_extract_component();
-    exit(0);
+    option.solver_type = 1;
+
     switch(option.solver_type){
         case NON_LINEAR_SOLVER:
             analize_by_NewtonRaphson();

@@ -332,9 +332,9 @@ void generate_unit_vec_to_mat3x6(const int face_n, const int subdomain1, const i
 void generate_unit_vec_to_mat3x9(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[9]){
 	double Ne[3];
 	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
-	N_matrix[0][0] = Ne[0]; 	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];			N_matrix[0][4] = 0.0;		N_matrix[0][5] = 0.0;      N_matrix[0][6] = Ne[2];			N_matrix[0][7] = 0.0;		N_matrix[0][8] = 0.0; 
-	N_matrix[1][0] = 0.0;       N_matrix[1][1] = Ne[0];		N_matrix[1][2] = 0.0;		N_matrix[1][3] = 0.0   ;		N_matrix[1][4] = Ne[1]; 	N_matrix[1][5] = 0.0;      N_matrix[1][6] = 0.0;			N_matrix[1][7] = Ne[2]; 	N_matrix[1][8] = 0.0;
-	N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[0];		N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = 0.0;	 	N_matrix[2][5] = Ne[1]; 	N_matrix[2][6] = 0.0;	 		N_matrix[2][7] = 0.0;		N_matrix[2][8] = Ne[2];	
+	N_matrix[0][0] = Ne[0]; 	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];			N_matrix[0][4] = 0.0;		N_matrix[0][5] = 0.0;       N_matrix[0][6] = Ne[2];			N_matrix[0][7] = 0.0;		N_matrix[0][8] = 0.0; 
+	N_matrix[1][0] = 0.0;       N_matrix[1][1] = Ne[0];		N_matrix[1][2] = 0.0;		N_matrix[1][3] = 0.0; 			N_matrix[1][4] = Ne[1];		N_matrix[1][5] = 0.0;    	N_matrix[1][6] = 0.0;			N_matrix[1][7] = Ne[2]; 	N_matrix[1][8] = 0.0;
+	N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[0];		N_matrix[2][3] = 0.0;			N_matrix[2][4] = 0.0;	 	N_matrix[2][5] = Ne[1];     N_matrix[2][6] = 0.0; 			N_matrix[2][7] = 0.0;		N_matrix[2][8] = Ne[2];	
 }
 
 void calc_Ne_3x6(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[6]){

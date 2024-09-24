@@ -271,9 +271,12 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
     int face_node[NUMBER_OF_NODE_IN_FACE];      //面内頂点番号
     double face_node_XYZ[4][3];                 //↑の座標
     double b_t_matrix[60][6];                   //ｂマトリクス
+    double b_t_NL_matrix[60][9];                //非線形ｂマトリクス
     double NT[60][3];                           //形状関数                        
     double Ne[3][6];                            //法線ベクトルの成分を格納したマトリクス
+    double Ne_d[3][9];                          //Neを異なる形式で格納したマトリクス
     double d_matrix[6][6];                      //ｄマトリクス
+    double s_matrix[9][9];                      //Sマトリクス
     double *current_point_XYZ;                  //ポイントの現配置座標
     double ke_matrix[60][60];                   //要素剛性マトリクス
 
@@ -316,7 +319,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
 
     //法線ベクトルを計算
     generate_unit_vec_to_mat3x6(global.subdomain.shared_face[face_n], global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], current_point_XYZ, Ne);
-    
+
     //Bマトリクスの計算
     generate_linear_b_matrix(b_t_matrix, point_n2);
 
@@ -373,6 +376,52 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
                         Ke_ij += NT_Ne_D_ik * b_t_matrix[j][k];
                     }
                     ke_matrix[i][j] += 0.5 * Ke_ij * mapping_parameter * sign * w[s] * w[t];
+                }
+            }
+        }
+    }
+
+    if(option.solver_type == 1){
+        //法線ベクトルを計算
+        generate_unit_vec_to_mat3x9(global.subdomain.shared_face[face_n], global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], current_point_XYZ, Ne_d);
+
+        //Bマトリクスの計算
+        generate_nonlinear_b_matrix(b_t_NL_matrix, point_n2);
+
+        //Sマトリクスの計算
+        generateSMatrix(s_matrix, current_stress);
+        
+        for(int s = 0; s < N_qu; s++){
+            for(int t = 0; t < N_qu; t++){
+                //正規化座標→物理座標のマッピングパラメーターを計算
+                mapping_parameter = calc_mapping_parameter(global.subdomain.shared_face[face_n], point_n2, s, t, X);
+
+                //ガウス点のz座標を計算
+                generate_gauss_point_coordinate(s, t, face_node_XYZ, X, xyz);
+
+                //形状関数の計算
+                calc_shape(xyz, option.dim, point_n1, current_point_XYZ, global.subdomain.support_offset, NT);
+
+                //要素剛性マトリクスの計算
+                for(int i = 0; i < option.dim * (N1_support + 1); i++){
+                    for(int j = 0; j < option.dim * (N2_support + 1); j++){
+                        double Ke_ij = 0.;
+
+                        for(int k = 0; k < 9; k++){
+                            double Nt_Ne_d_S_ik = 0.;
+
+                            for(int l = 0; l < 9; l++){
+                                double Nt_Ne_d_il = 0.;
+
+                                for(int m = 0; m < option.dim; m++){
+                                    Nt_Ne_d_il += NT[i][m] * Ne_d[m][l];
+                                }
+                                Nt_Ne_d_S_ik += Nt_Ne_d_il * s_matrix[l][k]; 
+                            }
+                            Ke_ij += Nt_Ne_d_S_ik * b_t_NL_matrix[j][k];
+                        }
+                        ke_matrix[i][j] += 0.5 * Ke_ij * mapping_parameter * sign * w[s] * w[t];
+                    }
                 }
             }
         }

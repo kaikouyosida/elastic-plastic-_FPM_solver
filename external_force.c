@@ -47,8 +47,8 @@ void update_external_force(int time){
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < option.dim; j++){
                 current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                            + global.subdomain.displacement[i][j]
-                                            + global.subdomain.displacement_increment[i][j];
+                                                    + global.subdomain.displacement[i][j]
+                                                    + global.subdomain.displacement_increment[i][j];
             }
         }
     }else{
@@ -116,7 +116,7 @@ void update_external_force(int time){
 void traction(double x1, double x2, double x3, double* t, int type){
 	if(type == 0){
     // x=1の面に課す荷重 //
-		t[0] = 0.0;  t[1] = 150.0;  t[2] = 0.0;
+		t[0] = 0.0;  t[1] = 0.0;  t[2] = 100.0;
 	}
   if(type == 1){
     // x=0の面に課す荷重 //

@@ -23,6 +23,7 @@ int count = 0;
 
 void analize_by_NewtonRaphson(){
     FILE *fp_debug;         //デバッグ用のファイルポインタ
+    FILE *fp_residual;
     char FILE_name[128];    //デバッグ用の文字配列
     double residual_norm;   //残差ノルム（収束判定）
     double du_norm = 0;   //変位修正量ノルム（収束判定）
@@ -40,7 +41,16 @@ void analize_by_NewtonRaphson(){
 
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
-        
+        #if 1
+        snprintf(FILE_name, 128, "debug_for_residual/Residual_parameter%d.dat", time_step);
+        fp_residual = fopen(FILE_name, "w");
+        if(fp_residual == NULL){
+            printf("residual file is not open\n");
+            exit(-1);
+        }
+        fprintf(fp_residual, "iteration         /     error norm\n");
+        #endif
+
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
             
             //変形勾配テンソル、応力、歪みを更新＋内力ベクトルの更新
@@ -54,18 +64,17 @@ void analize_by_NewtonRaphson(){
 
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
+            fprintf(fp_residual, "%5d   %+15.14e\n", iteration_step, residual_norm);
+            printf("Error:%+15.14e\n", residual_norm);
 
             //収束判定（residual_normが閾値を超えたら反復計算を終了)
-            #if 0
+            #if 1
             if(residual_norm < option.NR_tol){
                 printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
                 break;
             }
             #endif
 
-            if(iteration_step == 1)
-                break;
-            
             
             //係数マトリクスにディリクレ境界条件を付与
             ImposeDirichletTangentialMatrix();
@@ -110,7 +119,8 @@ void analize_by_NewtonRaphson(){
             //printf("%+15.14e\n", deformation_norm);
             #if 0
             snprintf(FILE_name, 128, "displacement_increment/displacement_increment%d.dat", iteration_step);
-            if((fp_debug = fopen(FILE_name, "w")) == NULL){
+            fp_debug = fopen(FILE_name, "w");
+            if(fp_debug == NULL){
                 printf("Error:memory is not enough\n");
                 exit(-1);
             }
@@ -126,8 +136,8 @@ void analize_by_NewtonRaphson(){
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < option.dim; j++){
                     current_point_xyz[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                                        + global.subdomain.displacement[i][j]
-                                                        + global.subdomain.displacement_increment[i][j];
+                                                            + global.subdomain.displacement[i][j]
+                                                            + global.subdomain.displacement_increment[i][j];
                 }
             }
             
@@ -144,9 +154,9 @@ void analize_by_NewtonRaphson(){
                 printf("Iteration is not converged\n");
                 exit(-1);
             }
-            
-            break;
         }
+        fclose(fp_residual);
+
         if((time_step + 1) % option.time_output == 0)
             Output_data(time_step);
         

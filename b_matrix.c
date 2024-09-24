@@ -97,8 +97,8 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], const int point_n){
         for(int i = 0; i < global.subdomain.N_point; i++){
             for(int j = 0; j < option.dim; j++){
                 current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                                    + global.subdomain.displacement[i][j]
-                                                    + global.subdomain.displacement_increment[i][j];
+                                                        + global.subdomain.displacement[i][j]
+                                                        + global.subdomain.displacement_increment[i][j];
             }
         }
 
@@ -168,18 +168,16 @@ double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], const int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double *latest_point_XYZ;
+    G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
 
     if((latest_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         exit(-1);
     }
-    G = matrix(option.dim * option.dim, option.dim * N_support + option.dim);
-
-
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
             latest_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                    + global.subdomain.displacement[i][j]
-                    + global.subdomain.displacement_increment[i][j];
+                                                    + global.subdomain.displacement[i][j]
+                                                    + global.subdomain.displacement_increment[i][j];
         }
     }
 

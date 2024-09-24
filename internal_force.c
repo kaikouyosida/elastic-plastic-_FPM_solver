@@ -42,11 +42,8 @@ void update_field_and_internal_forces(){
     double **G;                                                 //(u = {G}uE）につかうGマトリクス
     int support[60];                                             //サポートドメイン内のポイント数
     double displacement_increment[3];                           //サポートの変位増分
-    double **all_stress;                                        //各サブドメインにおける応力
     double trial_relative_equivalent_stress;
     double factor;
-
-    all_stress = matrix(global.subdomain.N_point, 6);
 
     //internal_forceをゼロ処理
     for(int i = 0; i < global.subdomain.N_point; i++){
@@ -57,11 +54,10 @@ void update_field_and_internal_forces(){
     
     //各サブドメインで内力ベクトルを作成
     for(int point = 0; point < global.subdomain.N_point; point++){
-       
         int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
+               
         for(int i = 0 ; i < N_support; i++)
-                    support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
-
+            support[i] = global.subdomain.support[global.subdomain.support_offset[point] + i];
         
         for(int i = 0; i < option.dim; i++){
             for(int j = 0; j < option.dim; j++){
@@ -104,6 +100,7 @@ void update_field_and_internal_forces(){
         //変位勾配のマトリクスを作成（動的に確保）
         G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
         calc_G(option.dim, point, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+        
         
         //現配置の変形勾配テンソルの逆行列を計算
         //相対変形勾配テンソルを計算。dF=(I-d(du)/d(x+u+du))^-1//
@@ -188,6 +185,7 @@ void update_field_and_internal_forces(){
                                             + elastic_strain_tensor[2][1]);
         current_elastic_strains[5] = 0.5 * (elastic_strain_tensor[2][0]
                                             + elastic_strain_tensor[0][2]);
+
         
         for (int i = 0; i < 6; i++)
                 trial_elastic_strains[i]
@@ -213,9 +211,7 @@ void update_field_and_internal_forces(){
         //試行相対相当応力の計算(sigma^trial_e)
         trial_relative_equivalent_stress
                 = calc_equivalent_stress(trial_relative_stresses);
-        
-
-        
+    
         if (trial_relative_equivalent_stress <= (*yield_stress))
             {   
                 
@@ -291,31 +287,26 @@ void update_field_and_internal_forces(){
             //Kirchhoff応力からCauchy応力の計算
             double inverse_volume_change
                 = 1.0 / calc_3x3matrix_determinant(current_deformation_gradients);
-            
-            for (int i = 0; i < 6; i++)
-                    current_stresses[i] *= inverse_volume_change;
 
-            //各サブドメインにおける応力とひずみを記録
-            for(int i = 0; i < 6; i++){
-                all_stress[point][i] = current_stresses[i];
-            }
+            for (int i = 0; i < 6; i++)
+                current_stresses[i] *= inverse_volume_change;
+
             for(int i = 0; i < option.dim; i++){
                 for(int j = 0; j < option.dim; j++){
                     global.subdomain.current_deformation_gradients[i][j][point] = current_deformation_gradients[i][j];
                 }
             }
     }
+
     
     //内力ベクトルの体積積分項を計算
-    calc_internal_force_volume(all_stress);
+    calc_internal_force_volume(global.subdomain.current_stresses);
 
     //内力ベクトルのペナルティ項を計算
-    calc_internal_force_penalty(all_stress);
+    calc_internal_force_penalty(global.subdomain.current_stresses);
    
-    //内力ベクトルの安定化項を計算(%%%%もしかするとこの項は内力ベクトルには含まれないかも…？？？by久田本）
-    //calc_internal_force_penalty_stabilization();
-
-    free_matrix(all_stress);
+    //内力ベクトルの安定化項を計算
+    calc_internal_force_penalty_stabilization();
 }
 
 double calc_equivalent_plastic_strain_increment(const double trial_relative_equivalent_stress,
@@ -367,7 +358,7 @@ void calc_internal_force_volume(double **current_stress){
     double subdomain_internal_force[60];            //サブドメイン単位での内力ベクトル
     double b_t_matrix[60][6];                       //bマトリクス
     double volume;                                  //サブドメインの体積
-
+    
     for(int point = 0; point < global.subdomain.N_point; point++){
         int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
 
@@ -391,7 +382,6 @@ void calc_internal_force_volume(double **current_stress){
                 subdomain_internal_force[option.dim * i + j] = force_j * volume;
             }
         }
-
         //各サブドメインで内力ベクトルをアセンブル
         assemble_vector(point, global.subdomain.global_internal_force, subdomain_internal_force);
     }

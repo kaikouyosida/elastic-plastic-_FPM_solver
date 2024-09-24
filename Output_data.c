@@ -158,7 +158,8 @@ void calc_extract_component(){
     double yield_stress[10000];
     double nodal_equivarent_stress[10000];
    
-    fp_extract = fopen("Data_Files_Output/Output_cauchy_stress_time49.dat", "r");
+   #if 1
+    fp_extract = fopen("Data_Files_Output/circle_0917/Output_cauchy_stress_time49.dat", "r");
     if(fp_extract == NULL){
         printf("File is not open\n");
         exit(-1);
@@ -173,7 +174,7 @@ void calc_extract_component(){
         fscanf(fp_extract, "\n");
     }
     fclose(fp_extract);
-    fp_extract = fopen("Data_Files_Output/Output_Plastic_strain_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0917/Output_Plastic_strain_time49.dat", "r");
     if(fp_extract == NULL){
         printf("File is not enough\n");
         exit(-1);
@@ -189,7 +190,7 @@ void calc_extract_component(){
     }
     fclose(fp_extract);
 
-    fp_extract = fopen("Data_Files_Output/Output_Deformation_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0917/Output_Deformation_time49.dat", "r");
     if(fp_extract == NULL){
         printf("Error:Memory is not enough\n");
         exit(-1);
@@ -204,7 +205,7 @@ void calc_extract_component(){
     }
     fclose(fp_extract);
 
-    fp_extract = fopen("Data_Files_Output/Output_yield_stress49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0917/Output_yield_stress49.dat", "r");
     if(fp_extract == NULL){
         printf("Error:File is not open\n");
         exit(-1);
@@ -214,22 +215,33 @@ void calc_extract_component(){
         fscanf(fp_extract, "%*d %lf\n", &yield_stress[i]);
     }
     fclose(fp_extract);
+    #endif
 
     #if 1
     for(int i = 0; i < global.subdomain.N_point; i++){
         double hydro_static_pressure = 1.0 / 3.0 * (stress[i][0] + stress[i][1] + stress[i][2]);
         if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
-            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], stress[i][1] - hydro_static_pressure);
+            printf("%5d %+15.14e %+15.14e %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], stress[i][0], stress[i][1], stress[i][2]);
         }
     }
     #endif
-    #if 0
+    #if 1
     for(int i = 0; i < global.subdomain.N_point; i++){
         equivarent_stress[i] = calc_equivalent_stress(stress[i]);
     }
     for(int i = 0; i < global.subdomain.N_point; i++){
         if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
-            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i],  equivarent_stress[i] / yield_stress[i]);
+            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i],  equivarent_stress[i]);
+        }
+    }
+    #endif
+    #if 1
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        equivarent_stress[i] = calc_equivalent_stress(strain[i]);
+    }
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
+            printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], 3.0 / 2.0 * equivarent_stress[i]);
         }
     }
     #endif
@@ -238,8 +250,8 @@ void calc_extract_component(){
     double error = 0.;
     generateElasticDMatrix(d_matrix);
 
-    double stress_ext[6] = {0, 0, 1.0, 0, 0, 0};
-    double strain_ext[6] = {-0.00015, -0.00015, 0.0005, 0, 0, 0};
+    double stress_ext[6] = {0, 100.0, 0.0, 0, 0, 0};
+    double strain_ext[6] = {-0.00015, 0.0005, -0.00015, 0, 0, 0};
     for(int i = 0; i < global.subdomain.N_point; i++){
         double volume = calc_initial_subdomain_volume(i);
         double integrated_part = 0.;
@@ -269,6 +281,7 @@ void calc_extract_component(){
         printf("%+15.14e\n", temp);
     }
     #endif
+
 
 }
 
@@ -318,6 +331,7 @@ void update_nodal_coordinate(){
 void paraview_node_data(int time_step){
     FILE *fp_paraview;
     double stresses[9];
+    double strain[9];
     char FILE_name[128];
     
     fp_paraview = fopen("paraview/Outline_for_paraview.vtk",  "w");
@@ -444,6 +458,64 @@ void paraview_node_data(int time_step){
         fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", stresses[0], stresses[1], stresses[2]);
         fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", stresses[3], stresses[4], stresses[5]);
         fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", stresses[6], stresses[7], stresses[8]);
+    }
+    fclose(fp_paraview);
+
+    snprintf(FILE_name, 128,"paraview/Paraview_time_strain%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name,"w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");
+    fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "TENSORS node_strain double\n");
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        for(int i = 0 ; i < 9; i++)
+            strain[i] = 0.;
+        int N_ar_node = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+        for(int i = 0; i < N_ar_node; i++){
+            int num_ar_node = global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i];
+            strain[0] += global.subdomain.elastic_strains[num_ar_node][0] + global.subdomain.current_plastic_strains[num_ar_node][0];
+            strain[1] += global.subdomain.elastic_strains[num_ar_node][3] + global.subdomain.current_plastic_strains[num_ar_node][3];   
+            strain[2] += global.subdomain.elastic_strains[num_ar_node][5] + global.subdomain.current_plastic_strains[num_ar_node][5];
+            strain[3] += global.subdomain.elastic_strains[num_ar_node][3] + global.subdomain.current_plastic_strains[num_ar_node][3];
+            strain[4] += global.subdomain.elastic_strains[num_ar_node][1] + global.subdomain.current_plastic_strains[num_ar_node][1];
+            strain[5] += global.subdomain.elastic_strains[num_ar_node][4] + global.subdomain.current_plastic_strains[num_ar_node][4];
+            strain[6] += global.subdomain.elastic_strains[num_ar_node][5] + global.subdomain.current_plastic_strains[num_ar_node][5];
+            strain[7] += global.subdomain.elastic_strains[num_ar_node][4] + global.subdomain.current_plastic_strains[num_ar_node][4];
+            strain[8] += global.subdomain.elastic_strains[num_ar_node][2] + global.subdomain.current_plastic_strains[num_ar_node][2];
+        }
+        for(int i = 0; i < 9; i++)
+            strain[i] /= (double)N_ar_node;
+        
+        fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", strain[0], strain[1], strain[2]);
+        fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", strain[3], strain[4], strain[5]);
+        fprintf(fp_paraview,"%+15.14e %+15.14e %+15.14e\n", strain[6], strain[7], strain[8]);
     }
     fclose(fp_paraview);
 
