@@ -9,8 +9,8 @@
 
 extern Option option;
 static double identity_tensor[3][3] = {{1.0, 0.0, 0.0},
-                                             {0.0, 1.0, 0.0},
-                                             {0.0, 0.0, 1.0}};
+                                        {0.0, 1.0, 0.0},
+                                        {0.0, 0.0, 1.0}};
 
 void calculateTensorExponent(double (*tensor_out)[3], double (*tensor_in)[3])
 #if 0
@@ -20,8 +20,8 @@ void calculateTensorExponent(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    double taylor_series_tolerance = 1.0e-15;
-    int taylor_series_max_iteration_count = 1000;
+    const double taylor_series_tolerance = 1.0e-20;
+    const int taylor_series_max_iteration_count = 1000;
 
     double power_tensor[3][3], previous_power_tensor[3][3];
     double factorial;
@@ -84,8 +84,8 @@ void calculateTensorLogarithm(double (*tensor_out)[3], double (*tensor_in)[3])
 }
 #else
 {
-    double taylor_series_tolerance = 1.0e-15;
-    int taylor_series_max_iteration_count = 1000;
+    const double taylor_series_tolerance = 1.0e-20;
+    const int taylor_series_max_iteration_count = 1000;
 
     double tensor[3][3], square_tensor[3][3];
     double power_tensor[3][3], previous_power_tensor[3][3];
@@ -381,7 +381,7 @@ void calculateIsotropicTensorFunctionDerivative(double tensor_out[3][3][3][3],
                                                 double (*function)(double variable),
                                                 double (*function_derivative)(double variable))
 {
-    double eigenvalue_tolerance = 1.0e-14;
+    double eigenvalue_tolerance = 1.0e-20;
 
     double new_eigenvalues[3];
     double new_eigenvalue_derivatives[3];
@@ -518,7 +518,7 @@ void calculateEigenvalues(double eigenvalues[3],
                           double tensor[3][3])
 #if 1
 {
-    double discriminant_tolerance = 1.0e-14;
+    double discriminant_tolerance = 1.0e-4;
 
     double square_tensor[3][3];
     double i1, i2, i3;
@@ -617,4 +617,74 @@ void calculateEigenprojections(double eigenprojections[3][3][3],
                        - (i1 - eigenvalues[i]) * tensor[j][k]
                        + i3 / eigenvalues[i] * identity_tensor[j][k]);
     }
+}
+
+void calculateIsotropicTensorFunction(double tensor_out[3][3],
+                                      double tensor_in[3][3],
+                                      double (*function)(const double variable))
+{
+    const double eigenvalue_tolerance = 1.0e-20;
+
+    double new_eigenvalues[3];
+    double eigenvalues[3];
+    double eigenprojections[3][3][3];
+    double tolerance;
+    int i, j, k;
+
+    /* Calculate eigenvalues and eigenprojections */
+    calculateEigenvalues(eigenvalues, tensor_in);
+    calculateEigenprojections(eigenprojections, eigenvalues, tensor_in);
+
+    /* Calculate new eigenvalues */
+    for (i = 0; i < 3; i++)
+        new_eigenvalues[i]
+            = function(eigenvalues[i]);
+
+    /* Calculate eigenvalue tolerance */
+    tolerance = eigenvalue_tolerance * (fabs(eigenvalues[0])
+                                        + fabs(eigenvalues[1])
+                                        + fabs(eigenvalues[2])) / 3.0;
+
+    /* Calculate new tensor when x_1 == x_2 == x_3 */
+    if (fabs(eigenvalues[0] - eigenvalues[1]) <= tolerance
+        && fabs(eigenvalues[1] - eigenvalues[2]) <= tolerance
+        && fabs(eigenvalues[2] - eigenvalues[0]) <= tolerance)
+    {
+        for (i = 0; i < 3; i++)
+            for (j = 0; j < 3; j++)
+                tensor_out[i][j]
+                    = new_eigenvalues[0]
+                    * identity_tensor[i][j];
+
+        return;
+    }
+
+    /* Calculate new tensor when x_a != x_b == x_c */
+    for (k = 0; k < 3; k++)
+        if (fabs(eigenvalues[(k + 1) % 3] - eigenvalues[(k + 2) % 3]) <= tolerance)
+        {
+            for (i = 0; i < 3; i++)
+                for (j = 0; j < 3; j++)
+                    tensor_out[i][j]
+                        = new_eigenvalues[k]
+                        * eigenprojections[k][i][j]
+                        + new_eigenvalues[(k + 1) % 3]
+                        * (identity_tensor[i][j] - eigenprojections[k][i][j]);
+
+            return;
+        }
+
+    /* Calculate new tensor when x_1 != x_2 != x_3 */
+    for (i = 0; i < 3; i++)
+        for (j = 0; j < 3; j++)
+        {
+            double temp = 0.0;
+
+            for (k = 0; k < 3; k++)
+                temp
+                    += new_eigenvalues[k]
+                    *  eigenprojections[k][i][j];
+
+            tensor_out[i][j] = temp;
+        }
 }

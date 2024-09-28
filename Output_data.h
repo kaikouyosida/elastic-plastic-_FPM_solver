@@ -9,3 +9,6 @@ void calc_extract_component();
 
 //paraviewデータの出力
 void paraview_node_data(int time_step);
+
+//頂点を共有するサブドメイン数
+int extract_node_number(int node , double (*nodal_displacement)[3]);

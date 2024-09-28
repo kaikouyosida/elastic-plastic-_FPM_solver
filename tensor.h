@@ -33,3 +33,8 @@ void calculateEigenvalues(double eigenvalues[3],
 void calculateEigenprojections(double eigenprojections[3][3][3],
                                double eigenvalues[3],
                                double tensor[3][3]);
+                        
+//等方テンソルを計算
+void calculateIsotropicTensorFunction(double tensor_out[3][3],
+                                      double tensor_in[3][3],
+                                      double (*function)(const double variable));

@@ -147,6 +147,7 @@ void update_field_and_internal_forces(){
         elastic_strain_tensor[2][2] = 2.0 * elastic_strains[2];
         
         calculateTensorExponent(elastic_left_cauchy_green_deformations, elastic_strain_tensor);
+        
 
         //試行弾性左コーシーグリーンテンソルの計算 [B]^trial = [dF] * [B]^e * [dF]^T 
         for (int i = 0; i < option.dim; i++)
@@ -171,11 +172,11 @@ void update_field_and_internal_forces(){
                         trial_elastic_left_cauchy_green_deformations[i][j]
                             = left_cauchy_green_deformation_i_j;
                     }
-       
-            
+
+     
         //試行弾性ひずみを計算（ {epsilon}^trial = 1/2 * ln([B]^trial)　
         calculateTensorLogarithm(elastic_strain_tensor, trial_elastic_left_cauchy_green_deformations);
-    
+        
         current_elastic_strains[0] = 0.5 * elastic_strain_tensor[0][0];
         current_elastic_strains[1] = 0.5 * elastic_strain_tensor[1][1];
         current_elastic_strains[2] = 0.5 * elastic_strain_tensor[2][2];
@@ -186,7 +187,6 @@ void update_field_and_internal_forces(){
         current_elastic_strains[5] = 0.5 * (elastic_strain_tensor[2][0]
                                             + elastic_strain_tensor[0][2]);
 
-        
         for (int i = 0; i < 6; i++)
                 trial_elastic_strains[i]
                     = current_elastic_strains[i];
@@ -291,6 +291,7 @@ void update_field_and_internal_forces(){
             for (int i = 0; i < 6; i++)
                 current_stresses[i] *= inverse_volume_change;
 
+            
             for(int i = 0; i < option.dim; i++){
                 for(int j = 0; j < option.dim; j++){
                     global.subdomain.current_deformation_gradients[i][j][point] = current_deformation_gradients[i][j];
@@ -433,7 +434,7 @@ void calc_internal_force_penalty(double **all_stress)
             generate_unit_vec_to_mat3x6(global.subdomain.shared_face[face], global.subdomain.pair_point_ib[2 * face + i], global.subdomain.pair_point_ib[2 * face + (i + 1) % 2], current_point_XYZ, Ne);
             
             for(int j = 0; j < 2; j++){
-                const int N_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j] + 1] - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j]];
+                int N_support = global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j] + 1] - global.subdomain.support_offset[global.subdomain.pair_point_ib[2 * face + j]];
 
                 //ペナルティ項の符号
                 if((i + j) % 2 == 0){
@@ -802,11 +803,11 @@ void update_nodal_displacement_increment(double *current_point_xyz){
     FILE *fp_debug;                     //デバッグ用のファイル
     double u_h[3];                      //変位増分のベクトル
     double node_xyz[3];                 //頂点座標ベクトル
-    
-    for(int i = 0; i < 3; i++){
+
+    //0をfill-in
+    for(int i = 0; i < option.dim; i++)
         u_h[i] = 0.;
-    }
-       
+    
     for(int point = 0; point < global.subdomain.N_point; point++){
         for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
 
@@ -816,7 +817,7 @@ void update_nodal_displacement_increment(double *current_point_xyz){
                             + global.subdomain.nodal_displacement_increment_sd[point][i][j];
             
             trial_u(node_xyz, point, current_point_xyz, u_h, 1);
-
+            
             for(int j = 0; j < option.dim; j++)
                 global.subdomain.nodal_displacement_increment_sd[point][i][j] += u_h[j];
         }   
@@ -834,6 +835,34 @@ void update_point_displaecment_increment(double *du){
                 global.subdomain.displacement_increment[i][j] += du[count];
                 count++;
             }
+        }
+    }
+}
+
+void update_nodal_displacement_increment_by_inital_NT(double *Initial_point_xyz){
+    int subdomain_node[8];
+    double node_xyz[3];
+    double xyz[3];
+    double u_h[3];
+    double NT[60][3];
+    int support[60];
+
+    //0をfill-in
+    for(int i = 0; i < option.dim; i++)
+        u_h[i] = 0.;
+
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
+            
+            for(int j = 0; j < option.dim; j++)
+                node_xyz[j] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
+                            + global.subdomain.nodal_displacement_sd[point][i][j]
+                            + global.subdomain.nodal_displacement_increment_sd[point][i][j];
+        
+            trial_u(node_xyz, point, Initial_point_xyz, u_h, 1);
+            
+            for(int j = 0; j < option.dim; j++)
+                global.subdomain.nodal_displacement_increment_sd[point][i][j] += u_h[j];
         }
     }
 }
@@ -896,7 +925,7 @@ double incremental_deformation_norm(){
     double deformation_norm = 0.;
     double **displacement_increment_variation;
     displacement_increment_variation = matrix(global.subdomain.N_point, option.dim);
-    
+
     for(int point = 0; point < global.subdomain.N_point; point++){
         for(int i = 0; i < option.dim; i++){
             displacement_increment_variation[point][i] = global.subdomain.previous_displacement_increment[point][i] - global.subdomain.displacement_increment[point][i];

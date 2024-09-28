@@ -21,6 +21,8 @@ void Output_data(int time_step){
     FILE *fp_strain;
     FILE *fp_F_grad;
     FILE *fp_volume;
+    double node_displacement[100][3];
+    int num;
     char FILE_name[128];
 
     snprintf(FILE_name, 128, "Data_Files_Output/Output_Deformation_time%d.dat", time_step);
@@ -144,6 +146,26 @@ void Output_data(int time_step){
         }
         fclose(fp_volume);
     }
+
+    snprintf(FILE_name, 238, "Data_Files_Output/Output_nodal_deformation%d.dat", time_step);
+    fp_deformation = fopen(FILE_name, "w");
+    if(fp_deformation == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_deformation, "node number / node_xyz\n");
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        fprintf(fp_deformation, "%5d    ", node);
+        num = extract_node_number(node, node_displacement);
+        for(int i = 0; i < num; i++){
+            for(int j = 0; j < option.dim; j++){
+                fprintf(fp_deformation, "%+15.14e   ", node_displacement[i][j]);
+            }
+            fprintf(fp_deformation, "||");
+        }
+        fprintf(fp_deformation, "\n");
+    }
+    fclose(fp_deformation);
 }
 
 //応力を抽出して出力
@@ -307,6 +329,7 @@ void update_nodal_coordinate(){
             }
             for(int i = 0; i < option.dim; i++)
                 global.subdomain.nodal_displacements[node][i] = nodal_displacement[i];
+
         }
     }else{
         for(int node = 0; node < global.subdomain.N_node; node++){
@@ -325,6 +348,32 @@ void update_nodal_coordinate(){
         }
     }
     
+}
+
+int extract_node_number(int node , double (*nodal_displacement)[3]){
+    int count = 0;
+    int flag = -1;
+    int temp;
+    int num;
+    
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
+            if(node == global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i]){
+               flag = 1; temp = i;
+               break; 
+            }
+        }
+        
+        if(flag == 1){
+            for(int i = 0; i < option.dim; i++){
+                nodal_displacement[count][i] = global.subdomain.nodal_displacement_sd[point][temp][i];
+            }
+            count++; 
+        }
+        flag = -1;
+    }
+    num = count + 1;
+    return num;
 }
 
 //paraviewデータの出力

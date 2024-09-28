@@ -32,13 +32,14 @@ void analize_by_NewtonRaphson(){
     double *K_u;            //求解用の接線剛性マトリクス
     double *r;              //求解用の残差ベクトル
     double *current_point_xyz;      //現在配置のポイント
+    double *Initial_point_XYZ;      //各ステップの現配置のポイント座標
 
     global.count = 0.;
     //変数のメモリ確保＋初期値を格納
     init_field();
 
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
-
+        
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
         #if 1
@@ -52,16 +53,16 @@ void analize_by_NewtonRaphson(){
         #endif
 
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
-            
+   
             //変形勾配テンソル、応力、歪みを更新＋内力ベクトルの更新
             update_field_and_internal_forces();
-
+      
             //外力ベクトルの更新
             update_external_force(time_step);
-
+  
             //係数マトリクスの更新
             generate_coefficient_matrix();
-
+           
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
             fprintf(fp_residual, "%5d   %+15.14e\n", iteration_step, residual_norm);
@@ -74,7 +75,6 @@ void analize_by_NewtonRaphson(){
                 break;
             }
             #endif
-
             
             //係数マトリクスにディリクレ境界条件を付与
             ImposeDirichletTangentialMatrix();
@@ -95,28 +95,26 @@ void analize_by_NewtonRaphson(){
                 exit(-1);
             }
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
-
+    
             //連立一次方程式を求解
             solver_LU_decomposition(K_u, du, r, solver_DoF);
-
-
+        
             //ポイントの変位修正ベクトルの値をもとに変位増分を更新.
             if((current_point_xyz = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("current_point_xyz's memory is not enough\n");
                 exit(-1);
             }
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                for(int j = 0; j < option.dim; j++){
-                    global.subdomain.previous_displacement_increment[i][j] = global.subdomain.displacement_increment[i][j];
-                }
+            if((Initial_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+                printf("current_point_xyz's memory is not enough\n");
+                exit(-1);
             }
 
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
-            
-            double deformation_norm = incremental_deformation_norm();
 
-            //printf("%+15.14e\n", deformation_norm);
+                
+            //double deformation_norm = incremental_deformation_norm();
+
             #if 0
             snprintf(FILE_name, 128, "displacement_increment/displacement_increment%d.dat", iteration_step);
             fp_debug = fopen(FILE_name, "w");
@@ -126,7 +124,7 @@ void analize_by_NewtonRaphson(){
             }
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < option.dim; j++){
-                    fprintf(fp_debug, "%+8.7e   ", global.subdomain.displacement_increment[i][j]);
+                    fprintf(fp_debug, "%+15.14e   ", global.subdomain.displacement_increment[i][j]);
                 }
                 fprintf(fp_debug, "\n");
             }
@@ -140,11 +138,16 @@ void analize_by_NewtonRaphson(){
                                                             + global.subdomain.displacement_increment[i][j];
                 }
             }
-            
+
+            for(int i = 0; i < global.subdomain.N_point; i++)
+                for(int j = 0; j < option.dim; j++)
+                    Initial_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j] + global.subdomain.displacement[i][j];
 
             //ノード変位の増分を更新
-            update_nodal_displacement_increment(current_point_xyz);
+            //update_nodal_displacement_increment(current_point_xyz);
+            update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
 
+            free(Initial_point_XYZ);
             free(current_point_xyz);
             free(K_u);
             free(r);
@@ -155,12 +158,14 @@ void analize_by_NewtonRaphson(){
                 exit(-1);
             }
         }
+
         fclose(fp_residual);
+        
+        increment_field();
 
         if((time_step + 1) % option.time_output == 0)
             Output_data(time_step);
-        
-        increment_field();
+
         if((time_step + 1) % option.time_output == 0){
 
             //出力用の節点変位の計算
@@ -168,6 +173,7 @@ void analize_by_NewtonRaphson(){
 
             //paraviewデータの出力
             paraview_node_data(time_step);
+            
             
         }
             

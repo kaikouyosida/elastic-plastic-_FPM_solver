@@ -29,8 +29,8 @@ void calc_G(const int dim, const int point_n, const double *point_xyz, const int
 
     G1 = matrix(dim, N_support + 1);
     // サポートドメインが2つ以上 //
-    if (1 < N_support)
-    {
+    if (1 < N_support){
+
         AT = matrix(dim, N_support);
         ATA = matrix(dim, dim);
         inv_ATA = matrix(dim, dim);
@@ -203,8 +203,7 @@ double generate_nonlinear_b_matrix(double (*b_t_matrix)[9], const int point_n){
 }
 
 // 形状関数を計算//
-void calc_shape(const double *xyz, const int dim, const int point_n, const double *point_xyz, const int *support_offset, double (*shapeF_t)[3])
-{
+void calc_shape(const double *xyz, const int dim, const int point_n, const double *point_xyz, const int *support_offset, double (*shapeF_t)[3]){
     const int N_support = support_offset[point_n + 1] - support_offset[point_n]; // サポートドメインの数
     double h[3];            //ポイント間距離
     double **G;             //変位勾配マトリクス
@@ -239,7 +238,6 @@ void calc_shape(const double *xyz, const int dim, const int point_n, const doubl
 //試行関数の計算 (pm = 0 or 1で変位と変位増分の試行関数を計算)
 void trial_u(const double *xyz, const int point_n, const double *point_XYZ, double *u_h, const int pm){
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
-    double **G;
     double *u;
     double shapeF_t[60][3];
 
@@ -264,9 +262,6 @@ void trial_u(const double *xyz, const int point_n, const double *point_XYZ, doub
         printf("Undefined number.");
     }
 
-    G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
-    calc_G(option.dim, point_n, point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
-
     calc_shape(xyz, option.dim, point_n, point_XYZ, global.subdomain.support_offset, shapeF_t);
 
     for(int i = 0; i < option.dim; i++)
@@ -280,6 +275,5 @@ void trial_u(const double *xyz, const int point_n, const double *point_XYZ, doub
         u_h[i] += u_i;
     } 
 
-    free_matrix(G);
     free(u);
 }

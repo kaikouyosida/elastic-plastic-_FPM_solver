@@ -78,7 +78,6 @@ double calc_subdomain_volume(int point_n){
         //内部境界面のノード番号のアドレスを格納
         generate_node_id(global.subdomain.face[global.subdomain.face_offset[point_n] + i], point_n, subdomain_node, node_id);
         
-    
         generate_current_edge_vector(edge1, point_n, node_id[1], node_id[0], subdomain_node);
         generate_current_edge_vector(edge2, point_n, node_id[3], node_id[0], subdomain_node);
         generate_current_points_vector(edge3, center, point_n, node_id[0], subdomain_node);
