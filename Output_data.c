@@ -1,3 +1,7 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
@@ -171,6 +175,7 @@ void Output_data(int time_step){
 //応力を抽出して出力
 void calc_extract_component(){
     FILE *fp_extract;
+    FILE *fp_gnuData;
     char ss[128];
     double stress[10000][6];
     double strain[10000][6];
@@ -181,7 +186,7 @@ void calc_extract_component(){
     double nodal_equivarent_stress[10000];
    
    #if 1
-    fp_extract = fopen("Data_Files_Output/circle_0917/Output_cauchy_stress_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_cauchy_stress_time49.dat", "r");
     if(fp_extract == NULL){
         printf("File is not open\n");
         exit(-1);
@@ -196,7 +201,7 @@ void calc_extract_component(){
         fscanf(fp_extract, "\n");
     }
     fclose(fp_extract);
-    fp_extract = fopen("Data_Files_Output/circle_0917/Output_Plastic_strain_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_Plastic_strain_time49.dat", "r");
     if(fp_extract == NULL){
         printf("File is not enough\n");
         exit(-1);
@@ -212,7 +217,7 @@ void calc_extract_component(){
     }
     fclose(fp_extract);
 
-    fp_extract = fopen("Data_Files_Output/circle_0917/Output_Deformation_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_Deformation_time49.dat", "r");
     if(fp_extract == NULL){
         printf("Error:Memory is not enough\n");
         exit(-1);
@@ -227,7 +232,7 @@ void calc_extract_component(){
     }
     fclose(fp_extract);
 
-    fp_extract = fopen("Data_Files_Output/circle_0917/Output_yield_stress49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_yield_stress49.dat", "r");
     if(fp_extract == NULL){
         printf("Error:File is not open\n");
         exit(-1);
@@ -303,6 +308,16 @@ void calc_extract_component(){
         printf("%+15.14e\n", temp);
     }
     #endif
+
+    fp_gnuData = fopen("gnuplot/gnuData.txt", "w");
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
+            fprintf(fp_extract, "%+15.14e        %+15.14e\n", global.subdomain.point_XYZ[3*i], global.subdomain.point_XYZ[3*i], stress[i][1]);
+        }
+    }
+    fclose(fp_gnuData);
+    
+ 
 
 
 }

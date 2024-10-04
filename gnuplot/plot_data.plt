@@ -1,0 +1,2 @@
+
+plot 'gnuData.txt'

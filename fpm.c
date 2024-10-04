@@ -1,3 +1,7 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
@@ -12,6 +16,7 @@
 #include"LU_decomposition.h"
 #include"Output.h"
 #include"Output_data.h"
+#include"MKL_solver.h"
 
 extern Global global;
 extern Option option;
@@ -65,9 +70,10 @@ void analize_by_NewtonRaphson(){
            
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
-            fprintf(fp_residual, "%5d   %+15.14e\n", iteration_step, residual_norm);
-            printf("Error:%+15.14e\n", residual_norm);
 
+            fprintf(fp_residual, "%5d  %+15.14e\n", iteration_step, residual_norm);
+            
+            printf("Error:%+15.14e\n", residual_norm);
             //収束判定（residual_normが閾値を超えたら反復計算を終了)
             #if 1
             if(residual_norm < option.NR_tol){
@@ -97,7 +103,46 @@ void analize_by_NewtonRaphson(){
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
     
             //連立一次方程式を求解
-            solver_LU_decomposition(K_u, du, r, solver_DoF);
+            //solver_LU_decomposition(K_u, du, r, solver_DoF);
+            #if 1
+            //LU分解で疎行列の連立一次方程式を計算
+            int NNZ = 0;
+            double *a;
+            int *ia, *ja;
+
+            for(int i = 0; i < solver_DoF; i++)
+                for(int j = 0; j < solver_DoF; j++)
+                    if(K_u[solver_DoF *  i + j] != 0)
+                        NNZ++;
+
+            if((a = (double *)calloc(NNZ, sizeof(double))) == NULL){
+                printf("Error:a's memory is not enough\n");
+                exit(-1);
+            }    
+            if((ia = (int *)calloc(solver_DoF + 1, sizeof(int))) == NULL){
+                printf("Error:ja's memory is not enough\n");
+                exit(-1);
+            }
+            if((ja = (int *)calloc(NNZ, sizeof(int))) == NULL){
+                printf("Error:ia's memory is not enough\n");
+                exit(-1);
+            }
+            
+            count = 0;
+            ia[0] = 0;
+            for(int i = 0; i < solver_DoF; i++){
+                for(int j = 0; j < solver_DoF; j++){
+                    if(K_u[solver_DoF * i + j] != 0){
+                        a[count] = K_u[solver_DoF * i + j];
+                        ja[count] = j;
+                        count++;
+                    }
+                }
+                ia[i+1] = count;
+            }
+
+            Paradiso(solver_DoF, NNZ, a, ia, ja, r, du);
+            #endif
         
             //ポイントの変位修正ベクトルの値をもとに変位増分を更新.
             if((current_point_xyz = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
@@ -108,13 +153,20 @@ void analize_by_NewtonRaphson(){
                 printf("current_point_xyz's memory is not enough\n");
                 exit(-1);
             }
-
+            for(int i = 0; i < global.subdomain.N_point; i++){
+                for(int j = 0; j < option.dim; j++){
+                    global.subdomain.previous_displacement_increment[i][j] = global.subdomain.displacement_increment[i][j];
+                }
+            }
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
-
-                
-            //double deformation_norm = incremental_deformation_norm();
-
+            // for(int i = 0; i < global.subdomain.N_point; i++){
+            //     for(int j = 0; j < 3; j++){
+            //         printf("%+15.14e    ", global.subdomain.displacement_increment[i][j]);
+            //     }
+            //     printf("\n");
+            // }
+            // exit(0);
             #if 0
             snprintf(FILE_name, 128, "displacement_increment/displacement_increment%d.dat", iteration_step);
             fp_debug = fopen(FILE_name, "w");
@@ -144,8 +196,8 @@ void analize_by_NewtonRaphson(){
                     Initial_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j] + global.subdomain.displacement[i][j];
 
             //ノード変位の増分を更新
-            //update_nodal_displacement_increment(current_point_xyz);
-            update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
+            update_nodal_displacement_increment(current_point_xyz);
+            //update_nodal_displacement_by_inital_NT(current_point_xyz);
 
             free(Initial_point_XYZ);
             free(current_point_xyz);
@@ -255,6 +307,45 @@ void infinitesimal_analization(){
 
             //連立一次方程式を求解
             solver_LU_decomposition(K_u, du, r, solver_DoF);
+            #if 0
+            //LU分解で疎行列の連立一次方程式を計算
+            int NNZ = 0;
+            double *a;
+            int *ia, *ja;
+
+            for(int i = 0; i < solver_DoF; i++)
+                for(int j = 0; j < solver_DoF; j++)
+                    if(K_u[solver_DoF *  i + j] != 0)
+                        NNZ++;
+
+            if((a = (double *)calloc(NNZ, sizeof(double))) == NULL){
+                printf("Error:a's memory is not enough\n");
+                exit(-1);
+            }    
+            if((ia = (int *)calloc(solver_DoF + 1, sizeof(int))) == NULL){
+                printf("Error:ja's memory is not enough\n");
+                exit(-1);
+            }
+            if((ja = (int *)calloc(NNZ, sizeof(int))) == NULL){
+                printf("Error:ia's memory is not enough\n");
+                exit(-1);
+            }
+            
+            count = 0;
+            ia[0] = 0;
+            for(int i = 0; i < solver_DoF; i++){
+                for(int j = 0; j < solver_DoF; j++){
+                    if(K_u[solver_DoF * i + j] != 0){
+                        a[count] = K_u[solver_DoF * i + j];
+                        ja[count] = j;
+                        count++;
+                    }
+                }
+                ia[i+1] = count;
+            }
+
+            Paradiso(solver_DoF, NNZ, a, ia, ja, r, du);
+            #endif
             printf("Solveed!\n");
 
             // ポイント変位の増分を更新

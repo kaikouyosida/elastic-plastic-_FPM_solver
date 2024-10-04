@@ -1,3 +1,7 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -188,13 +192,15 @@ void ImposeDirichletTangentialMatrix(){
 	}
 }
 
-//残差ベクトルと係数マトリクスを求解用にアセンブリ
+
+
 void assemble_matrix_and_vector_for_Dirichlet(double *K_u, double *residual){
   int DoF_free = option.dim * global.subdomain.N_point;
   int flag = 0;
   int count = 0;
 
   //残差ベクトルからディリクレ境界条件が反映される自由度を削除
+
   for(int i = 0; i < global.subdomain.N_point; i++){
     for(int j = 0; j < option.dim; j++){
       for(int k = 0; k < global.bc.N_D_DoF; k++)

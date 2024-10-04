@@ -1,3 +1,7 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
+
 #include<stdio.h>
 #include"s_matrix.h"
 #include"type.h"

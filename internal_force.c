@@ -1,3 +1,6 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
@@ -839,7 +842,7 @@ void update_point_displaecment_increment(double *du){
     }
 }
 
-void update_nodal_displacement_increment_by_inital_NT(double *Initial_point_xyz){
+void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz){
     int subdomain_node[8];
     double node_xyz[3];
     double xyz[3];
@@ -856,13 +859,12 @@ void update_nodal_displacement_increment_by_inital_NT(double *Initial_point_xyz)
             
             for(int j = 0; j < option.dim; j++)
                 node_xyz[j] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
-                            + global.subdomain.nodal_displacement_sd[point][i][j]
-                            + global.subdomain.nodal_displacement_increment_sd[point][i][j];
+                            + global.subdomain.nodal_displacement_sd[point][i][j];
         
-            trial_u(node_xyz, point, Initial_point_xyz, u_h, 1);
+            trial_u(node_xyz, point, Initial_point_xyz, u_h, 0);
             
             for(int j = 0; j < option.dim; j++)
-                global.subdomain.nodal_displacement_increment_sd[point][i][j] += u_h[j];
+                global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];
         }
     }
 }
@@ -885,13 +887,15 @@ void increment_field(){
                     global.subdomain.deformation_gradients[i][j][point] = global.subdomain.current_deformation_gradients[i][j][point];
                 }
             } 
-        
+
+            #if 0
             for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
                 for(int j = 0; j < option.dim; j++){
                     global.subdomain.nodal_displacement_sd[point][i][j] += global.subdomain.nodal_displacement_increment_sd[point][i][j];
                     global.subdomain.nodal_displacement_increment_sd[point][i][j] = 0.;
                 }
             }
+            #endif
         }
 
         for(int i = 0; i < 6; i++){

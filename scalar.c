@@ -66,8 +66,7 @@ double calc_subdomain_volume(int point_n){
         double center_i = 0.;
         for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
             center_i += (global.subdomain.node_XYZ[option.dim * subdomain_node[j] + i]
-                     + global.subdomain.nodal_displacement_sd[point_n][j][i]
-                     + global.subdomain.nodal_displacement_increment_sd[point_n][j][i]);
+                     + global.subdomain.nodal_displacement_sd[point_n][j][i]);
         }
         center[i] = center_i / 8.0;
     }
@@ -174,7 +173,7 @@ double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X){
     double area_vector[3];                                    //面積ベクトルの計算
     double dx_ds[3];                                          //微係数dx_h/dξ
     double dx_dt[3];                                          //微係数dx_h/dη
-    double x1[3], x2[3], x3[3], x4[3];                        //頂点座標
+    double x1[3], x2[3], x3[3], x4[3];                        //面内の頂点座標
     int node_id[NUMBER_OF_NODE_IN_FACE];                      //頂点番号のアドレス
     int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];          //サブドメイン中の節点番号
 
@@ -184,10 +183,10 @@ double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X){
         generate_node_id(face_n, point_n, subdomain_node, node_id);
         
         for(int i = 0; i < option.dim; i++){
-            x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[0]][i];
-            x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[1]][i];
-            x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[2]][i];
-            x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i] + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[3]][i];
+            x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[0]][i];
+            x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[1]][i];
+            x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[2]][i];
+            x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[3]][i];
         }
     }else{
         for(int i = 0; i < option.dim; i++){

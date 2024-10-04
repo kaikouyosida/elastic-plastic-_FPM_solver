@@ -1,7 +1,10 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
-
 #include"type.h"
 #include"scalar.h"
 #include"vector.h"
@@ -44,24 +47,24 @@ void assemble_vector(int point_n, double **global_vecter, const double *element_
 void generate_current_node_vector(int node_1, int node_2, double *vector){
     for(int i = 0; i < option.dim; i++)
         vector[i] = global.subdomain.node_XYZ[option.dim * node_1 + i] - global.subdomain.node_XYZ[option.dim * node_2 + i]
-                + global.subdomain.nodal_displacements[node_1][i] - global.subdomain.nodal_displacements[node_2][i]
-                + global.subdomain.nodal_displacement_increments[node_1][i] - global.subdomain.nodal_displacement_increments[node_2][i];
+                  + global.subdomain.nodal_displacements[node_1][i] - global.subdomain.nodal_displacements[node_2][i];
+                //+ global.subdomain.nodal_displacement_increments[node_1][i] - global.subdomain.nodal_displacement_increments[node_2][i];
 }
 
 //頂点から任意の座標に伸びるベクトルの生成
 void generate_current_node_to_point_vector(int node,double *point,double *vector){
     for(int i = 0; i < option.dim; i++)
         vector[i] = point[i] - global.subdomain.node_XYZ[option.dim * node + i]
-                - global.subdomain.nodal_displacements[node][i]
-                - global.subdomain.nodal_displacement_increments[node][i];
+                - global.subdomain.nodal_displacements[node][i];
+                //- global.subdomain.nodal_displacement_increments[node][i];
 }
 
 //頂点2から頂点1に伸びるベクトルの生成
 void generate_current_edge_vector(double *vector ,int point_n, int node_id_1, int node_id_2, int *subdomain_node){
     for(int i = 0; i < option.dim; i++)
         vector[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id_1] + i] - global.subdomain.node_XYZ[option.dim * subdomain_node[node_id_2] + i]
-                  + global.subdomain.nodal_displacement_sd[point_n][node_id_1][i] - global.subdomain.nodal_displacement_sd[point_n][node_id_2][i]
-                  + global.subdomain.nodal_displacement_increment_sd[point_n][node_id_1][i] - global.subdomain.nodal_displacement_increment_sd[point_n][node_id_2][i];
+                  + global.subdomain.nodal_displacement_sd[point_n][node_id_1][i] - global.subdomain.nodal_displacement_sd[point_n][node_id_2][i];
+                  //+ global.subdomain.nodal_displacement_increment_sd[point_n][node_id_1][i] - global.subdomain.nodal_displacement_increment_sd[point_n][node_id_2][i];
 }
 
 //頂点から任意の点の座標に伸びるベクトルの生成
@@ -69,8 +72,8 @@ void generate_current_points_vector(double *vector, double *point_xyz, int point
     for(int i = 0; i < option.dim; i++)
         vector[i] = point_xyz[i]
                     - (global.subdomain.node_XYZ[option.dim * subdomain_node[node_id] + i]
-                    + global.subdomain.nodal_displacement_sd[point_n][node_id][i]
-                    + global.subdomain.nodal_displacement_increment_sd[point_n][node_id][i]);
+                    + global.subdomain.nodal_displacement_sd[point_n][node_id][i]);
+                    //+ global.subdomain.nodal_displacement_increment_sd[point_n][node_id][i]);
 }
 
 //point側のサブドメインにおける形状関数から得た節点の現在座標
@@ -78,8 +81,8 @@ void generate_current_face_node(double face_node_XYZ[4][3], int node_id[4] ,int 
     for(int i = 0; i < 4; i++){
         for(int j = 0; j < option.dim; j++){
             face_node_XYZ[i][j] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[i]] + j]
-                                + global.subdomain.nodal_displacement_sd[point][node_id[i]][j]
-                                + global.subdomain.nodal_displacement_increment_sd[point][node_id[i]][j];
+                                + global.subdomain.nodal_displacement_sd[point][node_id[i]][j];
+                                //+ global.subdomain.nodal_displacement_increment_sd[point][node_id[i]][j];
         }
     }
 }
@@ -98,8 +101,8 @@ void generate_current_node_of_face(double face_node_XYZ[4][3], int face_n, int p
     for(int i = 0; i < 4; i++){
         for(int j = 0; j < option.dim; j++){
             face_node_XYZ[i][j] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[i]] + j]
-                                + global.subdomain.nodal_displacement_sd[point][node_id[i]][j]
-                                + global.subdomain.nodal_displacement_increment_sd[point][node_id[i]][j];
+                                + global.subdomain.nodal_displacement_sd[point][node_id[i]][j];
+                                //+ global.subdomain.nodal_displacement_increment_sd[point][node_id[i]][j];
         }
     }
 }

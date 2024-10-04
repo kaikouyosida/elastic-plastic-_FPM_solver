@@ -1,3 +1,7 @@
+#pragma warning(disable: 4100) // 引数が未使用の場合
+#pragma warning(disable: 4189) // ローカル変数が未使用の場合
+#pragma warning(disable: 4996) //fopenの警告番号
+
 #include<stdio.h>
 #include<stdlib.h>
 #include"type.h"
@@ -396,7 +400,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
                 //正規化座標→物理座標のマッピングパラメーターを計算
                 mapping_parameter = calc_mapping_parameter(global.subdomain.shared_face[face_n], point_n2, s, t, X);
 
-                //ガウス点のz座標を計算
+                //ガウス点の座標を計算
                 generate_gauss_point_coordinate(s, t, face_node_XYZ, X, xyz);
 
                 //形状関数の計算
@@ -517,7 +521,8 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
     }else{
         area_change_parameter = 1.0;
     }
-
+    area_change_parameter= 1.0;
+    
     for(int s = 0; s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
             //物理空間座標→正規化座標に変換するためのスカラー値を計算
