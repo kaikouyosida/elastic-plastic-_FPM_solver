@@ -816,13 +816,13 @@ void update_nodal_displacement_increment(double *current_point_xyz){
 
             for(int j = 0; j < option.dim; j++)
                 node_xyz[j] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
-                            + global.subdomain.nodal_displacement_sd[point][i][j]
-                            + global.subdomain.nodal_displacement_increment_sd[point][i][j];
+                            + global.subdomain.nodal_displacement_sd[point][i][j];
+                            //+ global.subdomain.nodal_displacement_increment_sd[point][i][j];
             
-            trial_u(node_xyz, point, current_point_xyz, u_h, 1);
+            trial_u(node_xyz, point, current_point_xyz, u_h, 0);
             
             for(int j = 0; j < option.dim; j++)
-                global.subdomain.nodal_displacement_increment_sd[point][i][j] += u_h[j];
+                global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];
         }   
     }
 }

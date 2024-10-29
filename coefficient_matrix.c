@@ -154,118 +154,6 @@ void generate_subdomain_coefficient_matrix_for_volume(const int point_n,
 void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, const int point_n2, const int face_n,
                                             double (*current_deformation_gradients)[3], const double *current_stress, double *trial_elastic_strains,
                                             const double *equivalemt_plastic_strains, const double *equivalent_plastic_strain_increments, const double *back_stresses, const int flag)
-#if 0
-{
-    FILE *fp_debug;
-    FILE *debug_matrix;
-    char FILE_name[128];
-
-    int N_qu = 1;
-    double xyz[3];
-    double X[27], w[27];
-    double mapping_parameter; 
-    double face_node_XYZ[4][3];
-    double **G;
-    double NT[60][3];
-    double Ne_d[3][9];
-    double d_matrix[6][6];
-    double modified_d_matrix[9][9];
-    double *current_point_XYZ;
-    double sign;
-    double ke_matrix[60][60];
-    int N1_support = global.subdomain.support_offset[point_n1 + 1] - global.subdomain.support_offset[point_n1];
-    int N2_support = global.subdomain.support_offset[point_n2 + 1] - global.subdomain.support_offset[point_n2];
-
-    
-    //ke_matrixをゼロ処理
-    for(int i = 0; i < option.dim * (N1_support + 1); i++)
-        for(int j = 0; j < option.dim * (N2_support + 1); j++)
-            ke_matrix[i][j] = 0.;
-
-    //項の符号を判定
-    if(flag == 0){
-        sign = 1.0;
-    }
-    else if(flag == 1){
-        sign = -1.0;
-    }
-
-    //ポイントの座標を計算
-    if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error:current_point_XYZ's memory is not enough\n");
-        exit(-1);
-    }
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < option.dim; j++){
-            current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
-                                                + global.subdomain.displacement[i][j]
-                                                + global.subdomain.displacement_increment[i][j];
-        }
-    }
-
-    //ガウスポイントを計算
-    Gauss_points_and_weighting_factors(N_qu, X, w);
-
-    //法線ベクトルを計算
-    generate_unit_vec_to_mat3x9(global.subdomain.shared_face[face_n], global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], current_point_XYZ, Ne_d);
-   
-    //形状関数の微係数を計算
-    G = matrix(option.dim * option.dim, option.dim * (N2_support + 1));
-    calc_G(option.dim, point_n2, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
-    
-    //材料定数マトリクスの計算, 有限変形用に修正
-    generateElasticDMatrix(d_matrix);
-    modify_d_matrix_with_finite_strain_for_PenaltyTerm(modified_d_matrix, d_matrix, current_stress, trial_elastic_strains, current_deformation_gradients);
-
-    #if 0
-    double d_tensor[3][3][3][3];
-    generateElasticDMatrix(d_matrix);
-    convertSymmetric4thOrderMatrixToTensor(d_tensor, d_matrix);
-    conver4thOrderTensorToMatrix(modified_d_matrix, d_tensor);
-    #endif
-
-    //pointn2のサブドメインにおける形状関数から得た節点の現在座標
-    generate_current_node_of_face(face_node_XYZ, global.subdomain.shared_face[face_n], point_n2);
-
-    for(int s = 0; s < N_qu; s++){
-        for(int t = 0; t < N_qu; t++){
-            //正規化座標→物理座標へのマッピングパラメータ
-            mapping_parameter = calc_mapping_parameter(global.subdomain.shared_face[face_n], point_n2, s, t, X);
-            
-            //gauss積分点の座標を計算
-            generate_gauss_point_coordinate(s, t, face_node_XYZ, X, xyz);
-
-            //形状関数の計算
-            calc_shape(xyz, option.dim, point_n1, current_point_XYZ, global.subdomain.support_offset, NT);
-
-            //要素剛性マトリクスの計算
-            for(int i = 0; i < option.dim * (N1_support + 1); i++){
-                for(int j = 0; j < option.dim * (N2_support + 1); j++){
-                    double Ke_ij = 0.;
-                    for(int k = 0; k < 9; k++){
-                        double NTnD_ik = 0.;
-                        for(int l = 0; l < 9; l++){
-                            double NTn_il = 0.;
-                            for(int m = 0; m < 3; m++){
-                                NTn_il += NT[i][m] * Ne_d[m][l];
-                            }
-                            NTnD_ik += NTn_il * modified_d_matrix[l][k];
-                        }
-                        Ke_ij += NTnD_ik * G[k][j];
-                    }
-                    ke_matrix[i][j] += 0.5 * Ke_ij * mapping_parameter * sign * w[s] * w[t];
-                }
-            }
-        }
-    }
-
-    //全体接線剛性マトリクスにアセンブル
-    assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point_n1, point_n2);
-
-    free_matrix(G);
-    free(current_point_XYZ);
-}
-#else
 {
     const int N_qu = 1;
     double sign;                                //項の符号
@@ -293,12 +181,11 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
             ke_matrix[i][j] = 0.;
         
     //項の符号を判定
-    if(flag == 0){
-        sign = 1.0;
-    }else if(flag == 1){
+    if(point_n1 == point_n2){
         sign = -1.0;
+    }else{
+        sign = 1.0;
     }
-
     //ポイントの座標を計算
     if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:current_point_XYZ's memory is not enough\n");
@@ -322,8 +209,14 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     //法線ベクトルを計算
-    generate_unit_vec_to_mat3x6(global.subdomain.shared_face[face_n], global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], current_point_XYZ, Ne);
-
+    int end_point;
+    if(point_n2 == global.subdomain.pair_point_ib[2 * face_n]){
+        end_point = global.subdomain.pair_point_ib[2*face_n+1];
+    }else if(point_n2 == global.subdomain.pair_point_ib[2*face_n+1]){
+        end_point = global.subdomain.pair_point_ib[2*face_n];
+    }
+    generate_unit_vec_to_mat3x6(global.subdomain.shared_face[face_n], point_n2, end_point, current_point_XYZ, Ne);
+    
     //Bマトリクスの計算
     generate_linear_b_matrix(b_t_matrix, point_n2);
 
@@ -387,7 +280,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
 
     if(option.solver_type == 1){
         //法線ベクトルを計算
-        generate_unit_vec_to_mat3x9(global.subdomain.shared_face[face_n], global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], current_point_XYZ, Ne_d);
+        generate_unit_vec_to_mat3x9(global.subdomain.shared_face[face_n], point_n2, end_point, current_point_XYZ, Ne_d);
 
         //Bマトリクスの計算
         generate_nonlinear_b_matrix(b_t_NL_matrix, point_n2);
@@ -436,7 +329,6 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
 
     free(current_point_XYZ);
 }
-#endif
 
 void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point_n1, const int point_n2, const int face_n, const int flag){
     int N_qu = 2;

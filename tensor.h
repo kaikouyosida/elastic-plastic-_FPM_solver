@@ -12,9 +12,6 @@ void convertSymmetric4thOrderMatrixToTensor(double tensor[3][3][3][3],
 void convertSymmetric4thOrderTensorToMatrix(double matrix[6][6],
                                             double tensor[3][3][3][3]);
 
-//4階のテンソルからマトリクスへ変換する                                           
-void conver4thOrderTensorToMatrix(double matrix[9][9], double tensor[3][3][3][3]);
-
 //対数テンソルの微分を計算する
 void calculateTensorLogarithmDerivative(double tensor_out[3][3][3][3],
                                         double tensor_in[3][3]);
