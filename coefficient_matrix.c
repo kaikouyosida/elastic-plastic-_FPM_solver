@@ -71,7 +71,9 @@ void generate_subdomain_coefficient_matrix_for_volume(const int point_n,
                                             double (*current_deformation_gradients)[3], const double *current_stress, const double *trial_elastic_strains,
                                             const double *equivalemt_plastic_strains, const double *equivalent_plastic_strain_increments, const double *back_stresses){
     double b_t_matrix[60][6];                   //bマトリクス
-    double b_t_NL_matrix[60][9];                //Bマトリクス（初期応力項用）
+    double b_t_NL_matrix[60][9];                //Bマトリクス（初期応力項用
+    double *current_point_XYZ;
+    double **G;
     double s_matrix[9][9];                      //応力マトリクス（初期応力項用）
     double d_matrix[6][6];                      //材料定数マトリクス
     double concictent_d_matrix[3][3][3][3];     //コンシステント接線剛性マトリクス
@@ -125,7 +127,21 @@ void generate_subdomain_coefficient_matrix_for_volume(const int point_n,
 
     if(option.solver_type == 1){
         //非線形Bマトリクスの計算
-        generate_nonlinear_b_matrix(b_t_NL_matrix, point_n);
+        if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+            printf("Error:current_point_XYZ's memory is not enough\n");
+            exit(-1);
+        }
+        for(int i = 0; i < global.subdomain.N_point; i++){
+            for(int j = 0; j < option.dim; j++){
+                current_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
+                                                    + global.subdomain.displacement[i][j]
+                                                    + global.subdomain.displacement_increment[i][j];
+            }
+        }
+
+        G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
+        calc_G(option.dim, point_n, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+
         //Sマトリクスの計算
         generateSMatrix(s_matrix, current_stress);
         
@@ -136,13 +152,16 @@ void generate_subdomain_coefficient_matrix_for_volume(const int point_n,
                 for(int k = 0; k < 9; k++){
                     double BTS_ik = 0.;
                     for(int l = 0; l < 9; l++)
-                        BTS_ik += b_t_NL_matrix[i][l] * s_matrix[l][k];
-                    ke_ij += BTS_ik * b_t_NL_matrix[j][k];
+                        BTS_ik += G[l][i] * s_matrix[l][k];
+                    ke_ij += BTS_ik * G[k][j];
                 }
                 ke_matrix[i][j] += ke_ij * mapping_parameter;
             }
         }
         #endif
+
+        free_matrix(G);
+        free(current_point_XYZ);
     }
     
     assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point_n, point_n);
@@ -157,6 +176,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
 {
     const int N_qu = 1;
     double sign;                                //項の符号
+    int end_point;                              //法線ベクトルの方向を決定するためのポイント番号
     double xyz[3];                              //ガウスポイントの座標
     double X[27], w[27];                        //正規化座標、重み関数
     double mapping_parameter;                   //正規化座標→物理座標への変換パラメーター
@@ -209,7 +229,6 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
     Gauss_points_and_weighting_factors(N_qu, X, w);
 
     //法線ベクトルを計算
-    int end_point;
     if(point_n2 == global.subdomain.pair_point_ib[2 * face_n]){
         end_point = global.subdomain.pair_point_ib[2*face_n+1];
     }else if(point_n2 == global.subdomain.pair_point_ib[2*face_n+1]){
