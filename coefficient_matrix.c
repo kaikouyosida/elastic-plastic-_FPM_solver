@@ -190,6 +190,7 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
     double d_matrix[6][6];                      //ｄマトリクス
     double s_matrix[9][9];                      //Sマトリクス
     double *current_point_XYZ;                  //ポイントの現配置座標
+    double **G;
     double ke_matrix[60][60];                   //要素剛性マトリクス
 
     int N1_support = global.subdomain.support_offset[point_n1 + 1] - global.subdomain.support_offset[point_n1];
@@ -302,7 +303,9 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
         generate_unit_vec_to_mat3x9(global.subdomain.shared_face[face_n], point_n2, end_point, current_point_XYZ, Ne_d);
 
         //Bマトリクスの計算
-        generate_nonlinear_b_matrix(b_t_NL_matrix, point_n2);
+        //generate_nonlinear_b_matrix(b_t_NL_matrix, point_n2);
+        G = matrix(option.dim * option.dim, option.dim * (N2_support + 1));
+        calc_G(option.dim, point_n2, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
 
         //Sマトリクスの計算
         generateSMatrix(s_matrix, current_stress);
@@ -334,13 +337,14 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
                                 }
                                 Nt_Ne_d_S_ik += Nt_Ne_d_il * s_matrix[l][k]; 
                             }
-                            Ke_ij += Nt_Ne_d_S_ik * b_t_NL_matrix[j][k];
+                            Ke_ij += Nt_Ne_d_S_ik * G[k][j];
                         }
                         ke_matrix[i][j] += 0.5 * Ke_ij * mapping_parameter * sign * w[s] * w[t];
                     }
                 }
             }
         }
+        free_matrix(G);
     }
 
     //全体剛性マトリクスにアセンブル
@@ -424,15 +428,6 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
     
   
     he = distance(option.dim, global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], current_point_XYZ);
-
-    //物質表記→空間表記する際の面積変化率(J/sqrt(nBn))^-1の計算(Nansonの式に基づく)
-    if(option.solver_type == 1){
-        area_change_parameter = generate_area_change_parameter(global.subdomain.pair_point_ib[2 * face_n], global.subdomain.pair_point_ib[2 * face_n + 1], face_n, 
-                                                                global.subdomain.vertex_offset, face_node_XYZ, current_point_XYZ);
-    }else{
-        area_change_parameter = 1.0;
-    }
-    area_change_parameter= 1.0;
     
     for(int s = 0; s < N_qu; s++){
         for(int t = 0; t < N_qu; t++){
@@ -454,7 +449,7 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
                     for(int k = 0; k < option.dim; k++){
                         N1TN2_ij += N1T[i][k] * N2T[j][k];
                     }
-                    ke_matrix[i][j] += eta / he * N1TN2_ij * area_change_parameter * mapping_parameter * sign  * w[s] * w[t];
+                    ke_matrix[i][j] += eta / he * N1TN2_ij * mapping_parameter * sign  * w[s] * w[t];
                 }
             }
         }
