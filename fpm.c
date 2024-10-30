@@ -160,28 +160,6 @@ void analize_by_NewtonRaphson(){
             }
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
-            // for(int i = 0; i < global.subdomain.N_point; i++){
-            //     for(int j = 0; j < 3; j++){
-            //         printf("%+15.14e    ", global.subdomain.displacement_increment[i][j]);
-            //     }
-            //     printf("\n");
-            // }
-            // exit(0);
-            #if 0
-            snprintf(FILE_name, 128, "displacement_increment/displacement_increment%d.dat", iteration_step);
-            fp_debug = fopen(FILE_name, "w");
-            if(fp_debug == NULL){
-                printf("Error:memory is not enough\n");
-                exit(-1);
-            }
-            for(int i = 0; i < global.subdomain.N_point; i++){
-                for(int j = 0; j < option.dim; j++){
-                    fprintf(fp_debug, "%+15.14e   ", global.subdomain.displacement_increment[i][j]);
-                }
-                fprintf(fp_debug, "\n");
-            }
-            fclose(fp_debug);
-            #endif
 
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < option.dim; j++){
@@ -197,7 +175,7 @@ void analize_by_NewtonRaphson(){
 
             //ノード変位の増分を更新
             update_nodal_displacement_increment(current_point_xyz);
-            //update_nodal_displacement_by_inital_NT(current_point_xyz);
+            //update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
 
             free(Initial_point_XYZ);
             free(current_point_xyz);

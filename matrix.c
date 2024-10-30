@@ -97,6 +97,23 @@ void zeroize3x3Matrix(double (*matrix)[3])
     matrix[2][2] = 0.0;
 }
 
+void cross_minus_1x9(double (*matrix)[9]){
+	for(int i = 0; i < 9; i++){
+		for(int j = 0; j < 9; j++){
+			matrix[i][j] = 0.;
+		}
+	}
+	matrix[0][8] = -1.0;
+	matrix[1][7] = -1.0;
+	matrix[2][6] = -1.0;
+	matrix[3][5] = -1.0;
+	matrix[4][4] = -1.0;
+	matrix[5][3] = -1.0;
+	matrix[6][2] = -1.0;
+	matrix[7][1] = -1.0;
+	matrix[8][0] = -1.0;
+}
+
 // Am行AnBm列の行列とAnBm行Bn列の行列の積をXに保存 //
 void multi_mat(int Am, int Bn, double** A, double** B, int AnBm, double** X){
 	for(int i = 0; i < Am; i++){
@@ -358,6 +375,15 @@ void calc_Ne_3x9(int subdomain_n1, int subdomain_n2, int face, int *vertex_offse
 	N_matrix[0][0] = Ne[0]; 	N_matrix[0][1] = 0.0;		N_matrix[0][2] = 0.0;		N_matrix[0][3] = Ne[1];			N_matrix[0][4] = 0.0;		N_matrix[0][5] = 0.0;      N_matrix[0][6] = Ne[2];			N_matrix[0][7] = 0.0;		N_matrix[0][8] = 0.0; 
 	N_matrix[1][0] = 0.0;       N_matrix[1][1] = Ne[0];		N_matrix[1][2] = 0.0;		N_matrix[1][3] = 0.0   ;		N_matrix[1][4] = Ne[1]; 	N_matrix[1][5] = 0.0;      N_matrix[1][6] = 0.0;			N_matrix[1][7] = Ne[2]; 	N_matrix[1][8] = 0.0;
 	N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[0];		N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = 0.0;	 	N_matrix[2][5] = Ne[1]; 	N_matrix[2][6] = 0.0;	 		N_matrix[2][7] = 0.0;		N_matrix[2][8] = Ne[2];	
+}
+
+void generate_unit_vec_to_mat1x9(const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ, double N_matrix[9]){
+	double Ne[3];
+	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
+
+	N_matrix[0] = Ne[0] * Ne[0];	N_matrix[1] = Ne[0] * Ne[1]; N_matrix[2] = Ne[0] * Ne[2];
+	N_matrix[3] = Ne[1] * Ne[0];	N_matrix[4] = Ne[1] * Ne[1]; N_matrix[5] = Ne[1] * Ne[2];
+	N_matrix[6] = Ne[2] * Ne[0];	N_matrix[7] = Ne[2] * Ne[1]; N_matrix[8] = Ne[2] * Ne[2];
 }
 
 

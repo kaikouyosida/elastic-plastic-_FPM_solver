@@ -361,6 +361,12 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
     double X[27], w[27];
     double sign;
     double *current_point_XYZ;
+    double jump_u[3];
+    int end_point;
+    double Ns[9];
+    double A[9][9];
+    double Ls[9][60];
+    double **G;
     int face_node[NUMBER_OF_NODE_IN_FACE];
     double face_node_XYZ[4][3];
     double face_node_XYZ1[4][3];
@@ -368,7 +374,6 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
     double he;                                                  //ポイント間の距離
     double eta = global.material.penalty;                       //ペナルティパラメータ
     double mapping_parameter;
-    double area_change_parameter;
     double ke_matrix[60][60];
     int N1_support = global.subdomain.support_offset[point_n1 + 1] - global.subdomain.support_offset[point_n1];
     int N2_support = global.subdomain.support_offset[point_n2 + 1] - global.subdomain.support_offset[point_n2];
@@ -454,6 +459,61 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
             }
         }
     }
+
+    if(option.solver_type == 1){
+         //法線ベクトルを計算
+        if(point_n2 == global.subdomain.pair_point_ib[2 * face_n]){
+            end_point = global.subdomain.pair_point_ib[2*face_n+1];
+        }else if(point_n2 == global.subdomain.pair_point_ib[2*face_n+1]){
+            end_point = global.subdomain.pair_point_ib[2*face_n];
+        }
+        generate_unit_vec_to_mat1x9(global.subdomain.shared_face[face_n], point_n2, end_point, current_point_XYZ, Ns);
+
+        //Lsを計算
+        cross_minus_1x9(A);
+        G = matrix(option.dim * option.dim, option.dim * (N2_support + 1));
+        calc_G(option.dim, point_n2, current_point_XYZ, global.subdomain.support_offset, global.subdomain.support, G);
+        for(int i = 0; i < 9; i++){
+            for(int j = 0; j < option.dim * (N2_support + 1); j++){
+                double LS_ij = 0.;
+                for(int k = 0; k < 9; k++){
+                    LS_ij += A[i][k] * G[k][j];
+                }
+                Ls[i][j] = LS_ij;
+            }
+        }
+
+        for(int s = 0; s < N_qu; s++){
+            for(int t = 0; t < N_qu; t++){
+                //物理空間座標→正規化座標に変換するためのスカラー値を計算
+                mapping_parameter = calc_mapping_parameter_for_av_area(face_node_XYZ, s, t, X);
+
+                //物理座標におけるガウス点の座標を計算
+                generate_gauss_point_coordinate(s, t, face_node_XYZ, X, xyz);
+            
+                //サブドメイン番号point_n1とpoint_n1の形状関数を計算
+                calc_shape(xyz, option.dim, point_n1, current_point_XYZ, global.subdomain.support_offset, N1T);
+           
+                jump_trial_u(xyz, point_n2, end_point, current_point_XYZ, jump_u, 0);
+
+                for(int i = 0; i < option.dim * (N1_support + 1); i++){
+                    for(int j = 0; j < option.dim * (N2_support + 1); j++){
+                        double ke_ij = 0.;
+                        for(int k = 0; k < 9; k++){
+                            double N_u_Ns_ik = 0.;
+                            for(int l = 0; l < option.dim; l++){
+                                N_u_Ns_ik += N1T[i][l] * jump_u[l] * Ns[k];
+                            }
+                            ke_ij += N_u_Ns_ik * Ls[k][j];
+                        }
+                        ke_matrix[i][j] += eta / he * 0.5 * ke_ij * mapping_parameter * sign * w[s] * w[t];
+                    }
+                }
+            }
+        }
+
+    }
+
     //全体剛性マトリクスにアセンブリ
     assemble_coefficient_matrix(ke_matrix, global.subdomain.Global_K, point_n1, point_n2);
 

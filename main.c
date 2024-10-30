@@ -22,8 +22,7 @@ int main(){
     
     Init_model();
     option.solver_type = 1;
-    //calc_extract_component();
-    //exit(0);
+    
     switch(option.solver_type){
         case NON_LINEAR_SOLVER:
             analize_by_NewtonRaphson();

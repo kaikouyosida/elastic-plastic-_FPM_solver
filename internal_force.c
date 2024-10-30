@@ -137,7 +137,7 @@ void update_field_and_internal_forces(){
                 current_deformation_gradients[i][j]
                     = deformation_gradient_i_j;
             }
-              
+        
         //弾性左コーシーグリーンテンソルの計算([B]^e = exp(2 * {epsilon}^e))
         elastic_strain_tensor[0][0] = 2.0 * elastic_strains[0];
         elastic_strain_tensor[0][1] = 2.0 * 0.5 * elastic_strains[3];
@@ -150,7 +150,6 @@ void update_field_and_internal_forces(){
         elastic_strain_tensor[2][2] = 2.0 * elastic_strains[2];
         
         calculateTensorExponent(elastic_left_cauchy_green_deformations, elastic_strain_tensor);
-        
 
         //試行弾性左コーシーグリーンテンソルの計算 [B]^trial = [dF] * [B]^e * [dF]^T 
         for (int i = 0; i < option.dim; i++)
@@ -190,9 +189,9 @@ void update_field_and_internal_forces(){
         current_elastic_strains[5] = 0.5 * (elastic_strain_tensor[2][0]
                                             + elastic_strain_tensor[0][2]);
 
-        for (int i = 0; i < 6; i++)
+          for (int i = 0; i < 6; i++)
                 trial_elastic_strains[i]
-                    = current_elastic_strains[i];
+                    = current_elastic_strains[i];        
         
         //試行応力の計算({sigma}^trial = [D] * {epsilon}^trial)
         for (int i = 0; i < 6; i++)

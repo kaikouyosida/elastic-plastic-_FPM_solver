@@ -16,6 +16,9 @@ void identify3x3Matrix(double (*matrix)[3]);
 //3×3のゼロ行列
 void zeroize3x3Matrix(double (*matrix)[3]);
 
+//i+j=8のi行j列が-1になる行列
+void cross_minus_1x9(double (*matrix)[9]);
+
 //3×3のマトリクスの二乗
 void calculate3x3MatrixSquare(double matrix_out[3][3],
                               double matrix_in[3][3]);
@@ -49,3 +52,5 @@ void generate_unit_vec_to_mat3x6(const int face_n, const int subdomain1, const i
 
 void generate_unit_vec_to_mat3x9(int face_n, int subdomain1, int subdomain2, double *current_point_XYZ, double (*N_matrix)[9]);
 void calc_Ne_3x9(int subdomain_n1, int subdomain_n2, int face, int *vertex_offset, int *node, double *node_xyz, double *center_xyz, double (*N_matrix)[9]);
+
+void generate_unit_vec_to_mat1x9(const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ, double N_matrix[9]);

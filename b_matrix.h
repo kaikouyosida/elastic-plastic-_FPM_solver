@@ -12,3 +12,6 @@ void calc_shape(const double *xyz, const int dim, const int point_n, const doubl
 
 //サブドメイン番号point_nの試行関数を計算(pm=0のときは変位, 1のときは変位増分を計算)
 void trial_u(const double *xyz, const int point_n, const double *point_XYZ, double *u_h, const int pm);
+
+//ポイント１側変位　-　ポイント２側変位の変位ベクトルの計算
+void jump_trial_u(const double *xyz, const int point_n1, const int point_n2, const double *point_XYZ, double *u_h, const int pm);

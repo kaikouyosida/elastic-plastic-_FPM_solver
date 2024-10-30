@@ -280,3 +280,16 @@ void trial_u(const double *xyz, const int point_n, const double *point_XYZ, doub
 
     free(u);
 }
+
+
+//ポイント１側変位　-　ポイント２側変位の変位ベクトルの計算 
+void jump_trial_u(const double *xyz, const int point_n1, const int point_n2, const double *point_XYZ, double *u_h, const int pm){
+    double u1[3];
+    double u2[3];
+
+    trial_u(xyz, point_n1, point_XYZ, u1, pm);
+    trial_u(xyz, point_n2, point_XYZ, u2, pm);
+
+    for(int i = 0; i < option.dim; i++)
+        u_h[i] = u1[i] - u2[i];
+}
