@@ -89,7 +89,19 @@ void Output_data(int time_step){
         fprintf(fp_strain, "\n");
     }
     fclose(fp_strain);
+
     #endif
+    snprintf(FILE_name, 128, "Data_Files_Output/Output_Equivalent_plastic_strain_time%d.dat", time_step);
+    fp_strain = fopen(FILE_name,"w");
+    if(fp_strain == NULL){
+        printf("file not open\n");
+        exit(-1);
+    }
+    fprintf(fp_strain,"point number / strain\n");
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_strain, "%5d     %+15.14e\n", i, global.subdomain.equivalent_plastic_strains[i]);
+    }
+    fclose(fp_strain);
 
     snprintf(FILE_name, 128, "Data_Files_Output/Output_total_strain_time%d.dat", time_step);
     fp_strain = fopen(FILE_name,"w");
@@ -397,7 +409,8 @@ void paraview_node_data(int time_step){
     double stresses[9];
     double strain[9];
     char FILE_name[128];
-    
+    double Equivalent_strain[30000];
+
     fp_paraview = fopen("paraview/Outline_for_paraview.vtk",  "w");
     if(fp_paraview == NULL){
         printf("File is not open\n");
@@ -563,6 +576,7 @@ void paraview_node_data(int time_step){
             strain[i] = 0.;
         int N_ar_node = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
         for(int i = 0; i < N_ar_node; i++){
+            
             int num_ar_node = global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i];
             strain[0] += global.subdomain.elastic_strains[num_ar_node][0] + global.subdomain.current_plastic_strains[num_ar_node][0];
             strain[1] += global.subdomain.elastic_strains[num_ar_node][3] + global.subdomain.current_plastic_strains[num_ar_node][3];   
@@ -610,5 +624,100 @@ void paraview_node_data(int time_step){
         fprintf(fp_paraview, "\n");
     }
     fclose(fp_paraview);
+
+    snprintf(FILE_name, 128,"paraview/Paraview_time_Equivalent_stress%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name,"w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");
+    fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "SCALARS Equivalent_stress double\n");
+    fprintf(fp_paraview, "LOOKUP_TABLE default\n");
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        double equivalent_stress = 0;
+        int N_ar_node = global.subdomain.ar_node_offset[i+1] - global.subdomain.ar_node_offset[i];
+        for(int j = 0; j < N_ar_node; j++){
+            equivalent_stress += calc_equivalent_stress(global.subdomain.stresses[global.subdomain.ar_node[global.subdomain.ar_node_offset[i]+j]]);
+        }
+        equivalent_stress /= N_ar_node;
+        fprintf(fp_paraview, "%+15.14e\n", equivalent_stress);
+    }
+    fclose(fp_paraview);
+
+    snprintf(FILE_name, 128, "paraview/Paraview_time_Equivalent_strain%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name,"w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");
+    fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "SCALARS Equivalent_strain double\n");
+    fprintf(fp_paraview, "LOOKUP_TABLE default\n");
+
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        Equivalent_strain[i] = 2.0 / 3.0 * calc_equivalent_stress(global.subdomain.current_plastic_strains[i]);
+    }
+    for(int i = 0 ;i < global.subdomain.N_node; i++){
+        int N_ar_point = global.subdomain.ar_node_offset[i+1] - global.subdomain.ar_node_offset[i];
+        double Equivalent_strain_i = 0.;
+        for(int j = 0; j < N_ar_point; j++){
+            Equivalent_strain_i += Equivalent_strain[global.subdomain.ar_node[global.subdomain.ar_node_offset[i] + j]] / N_ar_point;
+        }
+        fprintf(fp_paraview, "%+15.14e\n", Equivalent_strain_i);
+    }
+
+    fclose(fp_paraview);
+
 
 }

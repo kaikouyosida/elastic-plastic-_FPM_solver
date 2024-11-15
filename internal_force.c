@@ -216,13 +216,13 @@ void update_field_and_internal_forces(){
     
         if (trial_relative_equivalent_stress <= (*yield_stress))
             {   
-                
                 *equivalent_plastic_strain_increment = 0.0;
                 *current_yield_stress = *yield_stress;
                 for (int i = 0; i < 6; i++)
                     current_back_stresses[i] = back_stresses[i];
             }else{
-                printf("stress is too large!!\n");exit(-1);
+                //printf("Plastic Zone: %5d\n", point);
+                
                 double hardening_stress_increment;
                 double current_relative_hydrostatic_stress;
 
@@ -717,6 +717,7 @@ void update_field_and_internal_infinitesimal(){
             for (int i = 0; i < 6; i++)
                 current_back_stresses[i] = back_stresses[i];
         }else{
+            printf("Plastic zone: %d\n", point);
             double hardening_stress_increment;
             double current_relative_hydrostatic_stress;
 
@@ -799,33 +800,6 @@ void update_field_and_internal_infinitesimal(){
     calc_internal_force_penalty_stabilization();
     
 }
-
-//節点変位の増分を更新
-void update_nodal_displacement_increment(double *current_point_xyz){
-    FILE *fp_debug;                     //デバッグ用のファイル
-    double u_h[3];                      //変位増分のベクトル
-    double node_xyz[3];                 //頂点座標ベクトル
-
-    //0をfill-in
-    for(int i = 0; i < option.dim; i++)
-        u_h[i] = 0.;
-    
-    for(int point = 0; point < global.subdomain.N_point; point++){
-        for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
-
-            for(int j = 0; j < option.dim; j++)
-                node_xyz[j] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
-                            + global.subdomain.nodal_displacement_sd[point][i][j];
-                            //+ global.subdomain.nodal_displacement_increment_sd[point][i][j];
-            
-            trial_u(node_xyz, point, current_point_xyz, u_h, 0);
-            
-            for(int j = 0; j < option.dim; j++)
-                global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];
-        }   
-    }
-}
-
 void update_point_displaecment_increment(double *du){
     int count = 0;
     for(int i = 0; i < global.subdomain.N_point; i++){
@@ -842,12 +816,8 @@ void update_point_displaecment_increment(double *du){
 }
 
 void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz){
-    int subdomain_node[8];
     double node_xyz[3];
-    double xyz[3];
     double u_h[3];
-    double NT[60][3];
-    int support[60];
 
     //0をfill-in
     for(int i = 0; i < option.dim; i++)
@@ -885,16 +855,7 @@ void increment_field(){
                 for(int j = 0; j < option.dim; j++){
                     global.subdomain.deformation_gradients[i][j][point] = global.subdomain.current_deformation_gradients[i][j][point];
                 }
-            } 
-
-            #if 0
-            for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
-                for(int j = 0; j < option.dim; j++){
-                    global.subdomain.nodal_displacement_sd[point][i][j] += global.subdomain.nodal_displacement_increment_sd[point][i][j];
-                    global.subdomain.nodal_displacement_increment_sd[point][i][j] = 0.;
-                }
             }
-            #endif
         }
 
         for(int i = 0; i < 6; i++){

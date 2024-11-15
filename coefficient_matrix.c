@@ -4,6 +4,7 @@
 
 #include<stdio.h>
 #include<stdlib.h>
+#include<omp.h>
 #include"type.h"
 #include"coefficient_matrix.h"
 #include"scalar.h"
@@ -14,6 +15,7 @@
 #include"tensor.h"
 #include"s_matrix.h"
 #include"GetGaussPoints.h"
+#include"external_force.h"
 
 extern Global global;
 extern Option option;
@@ -22,15 +24,19 @@ extern Option option;
 #define NUMBER_OF_NODE_IN_FACE 4
 
 void generate_coefficient_matrix(){
-    double current_deformation_gradient[3][3];      //現配置での変形勾配テンソル
-    double debug_ke_matrix[60][60];
-
+   double current_deformation_gradient[3][3];      //現配置での変形勾配テンソル
+    double debug_ke_matrix[180][180];
+ 
     //全体剛性マトリクスを初期化
+    // #pragma omp parallel for collapse(2)
     for(int i = 0; i < option.dim * global.subdomain.N_point; i++)
         for(int j = 0; j < option.dim * global.subdomain.N_point; j++)
             global.subdomain.Global_K[option.dim * global.subdomain.N_point * i + j] = 0.;
+    printf("statusA\n");
+
 
     //接線剛性マトリクスの領域積分の項を計算
+    // #pragma omp parallel for private(current_deformation_gradient)
     for(int point = 0; point < global.subdomain.N_point; point++){
         if(option.solver_type == 1){
             for(int i = 0; i < option.dim; i++)
@@ -41,8 +47,10 @@ void generate_coefficient_matrix(){
         generate_subdomain_coefficient_matrix_for_volume(point, current_deformation_gradient, global.subdomain.current_stresses[point], global.subdomain.trial_elastic_strains[point],
         global.subdomain.equivalent_plastic_strains, global.subdomain.equivalent_plastic_strain_increments,global.subdomain.back_stresses[point]);
     }
+    printf("statusB\n");
 
     //ペナルティ項の第2, 3項を計算
+    // #pragma omp parallel for private(current_deformation_gradient)
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         for(int i = 0; i < 2; i++){
             if(option.solver_type == 1){
@@ -58,8 +66,10 @@ void generate_coefficient_matrix(){
             
         }
     }
+    printf("stausC\n");
     
     //ペナルティ項（安定化項）の項を計算
+    // #pragma omp parallel for
     for(int face = 0; face < global.subdomain.N_int_boundary; face++)
         for(int i = 0; i < 2; i++)
             for(int j = 0; j < 2; j++)
@@ -459,7 +469,7 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
             }
         }
     }
-
+    
     if(option.solver_type == 1){
          //法線ベクトルを計算
         if(point_n2 == global.subdomain.pair_point_ib[2 * face_n]){
@@ -511,6 +521,7 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
                 }
             }
         }
+        free_matrix(G);
 
     }
 
@@ -520,6 +531,46 @@ void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point
     free(current_point_XYZ);
 
 }
+
+// void generate_subdomian_coeffucuent_for_traction(const int point_n, const int face_n, int traction_type){
+//     double *current_point_XYZ;      //現配置のポイント座標
+//     int N_qu = 1;
+//     double t[3];
+//     double X[27], w[27];            //ガウス点の座標と重み
+//     double face_node_XYZ[4][3];     //外部境界の節点座標
+//     double xyz[3];                  //ガウス点座標
+//     double mapping_parameter;
+
+//     //ポイントの座標を計算
+//     if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+//         printf("Error: current_point_XYZ memory is not enough\n");
+//         exit(-1);
+//     }
+
+//     //ガウス積分点と重み係数の設定
+//     Gauss_points_and_weighting_factors(N_qu, X, w);
+
+//     //頂点座標からなるサブドメインの外部境界の設定
+//     generate_current_node_of_face(face_node_XYZ, face_n, point_n);
+
+//     for(int s = 0; s < N_qu; s++){
+//         for(int t = 0; t < N_qu; t++){
+//             //物理空間座標→正規化座標に変換するためのスカラー値を計算
+//             mapping_parameter = calc_mapping_parameter_for_av_area(face_node_XYZ, s, t, X);
+
+//             //物理座標におけるガウス点の座標を計算
+//             generate_gauss_point_coordinate(s, t, face_node_XYZ, X, xyz);
+
+//             //トラクションの計算
+//             traction(xyz[0], xyz[1], xyz[2], t, traction_type);
+
+
+//         }
+//     }
+
+
+
+// }
 
 void assemble_coefficient_matrix(double (*element_K)[60], double *Global_K, int point_n1, int point_n2){
     int ref_num1 = global.subdomain.support_offset[point_n1];

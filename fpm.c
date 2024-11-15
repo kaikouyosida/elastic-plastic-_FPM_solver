@@ -31,7 +31,7 @@ void analize_by_NewtonRaphson(){
     FILE *fp_residual;
     char FILE_name[128];    //デバッグ用の文字配列
     double residual_norm;   //残差ノルム（収束判定）
-    double du_norm = 0;   //変位修正量ノルム（収束判定）
+    double u_norm;           //変位修正量ノルム（収束判定）
     double error_norm;      //ひずみエネルギノルムの相対誤差
     double *du;             //求解用の変位増分ベクトル
     double *K_u;            //求解用の接線剛性マトリクス
@@ -43,10 +43,22 @@ void analize_by_NewtonRaphson(){
     //変数のメモリ確保＋初期値を格納
     init_field();
 
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        if(fabs(sqrt(global.subdomain.point_XYZ[3*i]* global.subdomain.point_XYZ[3*i] + global.subdomain.point_XYZ[3*i+1] * global.subdomain.point_XYZ[3*i+1]) - 1.0) < 1.0e-2
+         && global.subdomain.point_XYZ[3*i+1] < 3.0 - 1.0e-5 && global.subdomain.point_XYZ[3*i+1] > 1.0e-5){
+            global.subdomain.point_XYZ[3*i] += 0.01;
+            global.subdomain.point_XYZ[3*i+1] += 0.01;
+        }else if(global.subdomain.point_XYZ[3*i+1] < 0.5 && global.subdomain.point_XYZ[3*i+1] >1.0e-5){
+            global.subdomain.point_XYZ[3*i+2] -= 0.01;
+        }
+    }
+    
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
         
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
+        u_norm = 100.0;
+
         #if 1
         snprintf(FILE_name, 128, "debug_for_residual/Residual_parameter%d.dat", time_step);
         fp_residual = fopen(FILE_name, "w");
@@ -54,7 +66,7 @@ void analize_by_NewtonRaphson(){
             printf("residual file is not open\n");
             exit(-1);
         }
-        fprintf(fp_residual, "iteration         /     error norm\n");
+        fprintf(fp_residual, "iteration         /     error norm        /       u_norm\n");
         #endif
 
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
@@ -71,16 +83,25 @@ void analize_by_NewtonRaphson(){
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
 
-            fprintf(fp_residual, "%5d  %+15.14e\n", iteration_step, residual_norm);
+            fprintf(fp_residual, "%5d  %+15.14e %+15.14e\n", iteration_step, residual_norm, u_norm);
             
-            printf("Error:%+15.14e\n", residual_norm);
+            printf("Error:%+15.14e %+15.14e\n", residual_norm, u_norm);
             //収束判定（residual_normが閾値を超えたら反復計算を終了)
-            #if 1
-            if(residual_norm < option.NR_tol){
-                printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
-                break;
+            #if 0
+            if(residual_norm < option.NR_tol || u_norm < option.NR_tol){
+                if(residual_norm < option.NR_tol){
+                    printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
+                    break;
+                }else if(u_norm < option.NR_tol){
+                    printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration_step, u_norm);
+                    break;
+                }
             }
             #endif
+            if(u_norm < option.NR_tol){
+                printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration_step, u_norm);
+                break;
+            }
             
             //係数マトリクスにディリクレ境界条件を付与
             ImposeDirichletTangentialMatrix();
@@ -161,6 +182,11 @@ void analize_by_NewtonRaphson(){
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
 
+            u_norm = 0;
+            for(int i = 0; i < solver_DoF; i++){
+                u_norm += du[i] * du[i];
+            }
+
             for(int i = 0; i < global.subdomain.N_point; i++){
                 for(int j = 0; j < option.dim; j++){
                     current_point_xyz[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j]
@@ -174,8 +200,7 @@ void analize_by_NewtonRaphson(){
                     Initial_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j] + global.subdomain.displacement[i][j];
 
             //ノード変位の増分を更新
-            update_nodal_displacement_increment(current_point_xyz);
-            //update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
+            update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
 
             free(Initial_point_XYZ);
             free(current_point_xyz);
