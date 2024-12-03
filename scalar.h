@@ -28,9 +28,6 @@ double calc_mapping_parameter_for_av_area(const double face_node_XYZ[4][3], int 
 
 double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X);
 
-//面積変化率の計算
-double generate_area_change_parameter(int subdomain_n1, int subdomain_n2, int face_n, int *vertex_offset, double face_node_XYZ[4][3], double *center_xyz);
-
 //ノルムの計算
 double norm(double *vec, int n);
 

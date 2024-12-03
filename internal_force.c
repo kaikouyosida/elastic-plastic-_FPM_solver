@@ -30,7 +30,6 @@ double temp;
 
 void update_field_and_internal_forces(){
     FILE *fp_debug_fint;
-    
     double d_matrix[6][6];                                      //Dマトリクス
     double inverse_relative_deformation_gradient[3][3];         //相対変形勾配テンソルの逆テンソル
     double relative_deformation_gradient[3][3];                 //相対変形勾配テンソル
@@ -40,10 +39,10 @@ void update_field_and_internal_forces(){
     double elastic_left_cauchy_green_deformations[3][3];        //弾性左コーシーグリーンテンソル
     double trial_elastic_left_cauchy_green_deformations[3][3];  //試行弾性左コーシーグリーンテンソル
     double trial_relative_stresses[6];                          //試行相対応力
-    double b_t_matrix[60][6];                                   //Bマトリクスの転置
+    double b_t_matrix[180][6];                                   //Bマトリクスの転置
     double *current_point_XYZ;                                   //現配置のポイント配置
     double **G;                                                 //(u = {G}uE）につかうGマトリクス
-    int support[60];                                             //サポートドメイン内のポイント数
+    int support[180];                                             //サポートドメイン内のポイント数
     double displacement_increment[3];                           //サポートの変位増分
     double trial_relative_equivalent_stress;
     double factor;
@@ -153,27 +152,27 @@ void update_field_and_internal_forces(){
 
         //試行弾性左コーシーグリーンテンソルの計算 [B]^trial = [dF] * [B]^e * [dF]^T 
         for (int i = 0; i < option.dim; i++)
-                    for (int j = 0; j < option.dim; j++)
-                    {
-                        double left_cauchy_green_deformation_i_j = 0.0;
+            for (int j = 0; j < option.dim; j++)
+            {
+                double left_cauchy_green_deformation_i_j = 0.0;
 
-                        for (int k = 0; k < option.dim; k++)
-                        {
-                            double left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l = 0.0;
+                for (int k = 0; k < option.dim; k++)
+                {
+                    double left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l = 0.0;
 
-                            for (int l = 0; l < option.dim; l++)
-                                left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l
-                                    += elastic_left_cauchy_green_deformations[k][l]
-                                    *  relative_deformation_gradient[j][l];
+                    for (int l = 0; l < option.dim; l++)
+                        left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l
+                            += elastic_left_cauchy_green_deformations[k][l]
+                            *  relative_deformation_gradient[j][l];
 
-                            left_cauchy_green_deformation_i_j
-                                += relative_deformation_gradient[i][k]
-                                *  left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l;
-                        }
+                    left_cauchy_green_deformation_i_j
+                        += relative_deformation_gradient[i][k]
+                        *  left_cauchy_green_deformation_k_l_times_relative_deformation_gradient_j_l;
+                }
 
-                        trial_elastic_left_cauchy_green_deformations[i][j]
-                            = left_cauchy_green_deformation_i_j;
-                    }
+                trial_elastic_left_cauchy_green_deformations[i][j]
+                    = left_cauchy_green_deformation_i_j;
+            }
 
      
         //試行弾性ひずみを計算（ {epsilon}^trial = 1/2 * ln([B]^trial)　
@@ -227,15 +226,17 @@ void update_field_and_internal_forces(){
                 double current_relative_hydrostatic_stress;
 
                 //相当塑性ひずみ増分の計算
-                *equivalent_plastic_strain
+                *equivalent_plastic_strain_increment
                     = calc_equivalent_plastic_strain_increment(trial_relative_equivalent_stress,
                                                                 *equivalent_plastic_strain,
                                                                 *yield_stress);
+                                        
                 //硬化応力増分の計算
                 hardening_stress_increment
                     = get_hardening_stress((*equivalent_plastic_strain) + (*equivalent_plastic_strain_increment))
                     - get_hardening_stress((*equivalent_plastic_strain));
                 
+               
                 //試行相対偏差応力の計算
                 current_relative_hydrostatic_stress
                     = (1.0 / 3.0)
@@ -300,7 +301,6 @@ void update_field_and_internal_forces(){
                 }
             }
     }
-
     
     //内力ベクトルの体積積分項を計算
     calc_internal_force_volume(global.subdomain.current_stresses);
@@ -358,8 +358,8 @@ double calc_equivalent_plastic_strain_increment(const double trial_relative_equi
 
 
 void calc_internal_force_volume(double **current_stress){
-    double subdomain_internal_force[60];            //サブドメイン単位での内力ベクトル
-    double b_t_matrix[60][6];                       //bマトリクス
+    double subdomain_internal_force[180];            //サブドメイン単位での内力ベクトル
+    double b_t_matrix[180][6];                       //bマトリクス
     double volume;                                  //サブドメインの体積
     
     for(int point = 0; point < global.subdomain.N_point; point++){
@@ -398,8 +398,8 @@ void calc_internal_force_penalty(double **all_stress)
     double X[27], w[27];                                        //ガウス求積に使う正規化座標と重み関数
     double xyz[3];                                              //求積点の座標
     double Ne[3][6];                                            //内部境界の法線ベクトル
-    double NT[60][3];                                           //形状関数の転置
-    double subdomain_internal_force[60];                        //サブドメインごとの内力ベクトル
+    double NT[180][3];                                           //形状関数の転置
+    double subdomain_internal_force[180];                        //サブドメインごとの内力ベクトル
     double face_node_XYZ[NUMBER_OF_NODE_IN_FACE][3];            //面を構成する節点の座標
     int subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN];            //サブドメイン中の節点番号
     int node_id[NUMBER_OF_NODE_IN_FACE];                        //サブドメインの節点アドレス
@@ -505,16 +505,16 @@ void calc_internal_force_penalty_stabilization(){
     double ndoe_id[NUMBER_OF_NODE_IN_FACE];                     //ノード番号のアドレス
     double xyz[3];                                              //求積点の座標
     double u_h[3];                                              //試行関数
-    double NT[60][3];                                           //形状関数の転置
-    double subdomain_internal_force[60];                        //サブドメインごとの内力ベクトル
+    double NT[180][3];                                           //形状関数の転置
+    double subdomain_internal_force[180];                        //サブドメインごとの内力ベクトル
     double face_node_XYZ[4][3];                                 //面を構成する節点の座標
     double face_node_XYZ1[4][3];
     double face_node_XYZ2[4][3];
     double mapping_parameter;                                   //物理座標→正規化座標へのマッピングに要するパラメータ
     double *current_point_XYZ;                                  //ポイントの現在の座標
     double he;                                                  //ポイント間の距離
-    const double eta = global.material.penalty;                 //ペナルティパラメータ
-
+    double eta = global.material.penalty;                 //ペナルティパラメータ
+    
     //形状関数を計算するためのpoint, nodeにおける現配置の座標を計算
     if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:point_XYZ's memory is not enough\n");
@@ -543,6 +543,16 @@ void calc_internal_force_penalty_stabilization(){
         //ポイント間の距離を計算
         he = distance(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1], current_point_XYZ);
         
+        //ペナルティパラメータを局所的スカラー倍する
+        // if(global.subdomain.shared_face[face] == 267 
+        // || global.subdomain.shared_face[face] == 1322
+        // || global.subdomain.shared_face[face] == 271
+        // || global.subdomain.shared_face[face] == 1329){
+        //     if(option.time >= 0.){
+        //         eta = 10.0;
+        //     }
+        // }
+
         //Γ*の頂点の座標を計算（Γ+とΓ-の平均を計算）
         if(option.solver_type == 1){
             generate_current_node_of_face(face_node_XYZ1, global.subdomain.shared_face[face], global.subdomain.pair_point_ib[2 * face]);
@@ -617,6 +627,7 @@ double calc_global_force_residual_norm(int iteration_step){
     
     
     ImposeDirichretResidual(iteration_step);
+  
 
     //外力ベクトルと残差ベクトルのノルムを計算
     global_f_norm = norm_for_mat(global.subdomain.global_external_force, global.subdomain.N_point, option.dim);
@@ -634,8 +645,8 @@ double calc_global_force_residual_norm(int iteration_step){
 
 //微小変形弾塑性解析における増分
 void update_field_and_internal_infinitesimal(){
-    int  support[60];                   //サブドメインのサポートドメイン
-    double b_t_matrix[60][6];           //Bマトリクス
+    int  support[180];                   //サブドメインのサポートドメイン
+    double b_t_matrix[180][6];           //Bマトリクス
     double d_matrix[6][6];              //Dマトリクス
     double trial_relative_stresses[6];  //試行相対応力
 
@@ -800,6 +811,7 @@ void update_field_and_internal_infinitesimal(){
     calc_internal_force_penalty_stabilization();
     
 }
+
 void update_point_displaecment_increment(double *du){
     int count = 0;
     for(int i = 0; i < global.subdomain.N_point; i++){
@@ -836,6 +848,45 @@ void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz){
                 global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];
         }
     }
+}
+
+void update_nodal_displacement_increment(double *current_point_XYZ, double *Initial_point_xyz){
+    double node_xyz[3];
+    double u_h[3];
+    double delta_u[3];
+
+    //0をfill-in
+    for(int i = 0; i < option.dim; i++){
+        u_h[i] = 0.; delta_u[i] = 0.;
+    }
+
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        if(global.subdomain.equivalent_plastic_strain_increments[point] == 0.){
+            for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
+                
+                for(int j = 0; j < option.dim; j++)
+                    node_xyz[j] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
+                                + global.subdomain.nodal_displacement_sd[point][i][j];
+            
+                trial_u(node_xyz, point, Initial_point_xyz, u_h, 0);
+                
+                for(int j = 0; j < option.dim; j++)
+                    global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];
+            }
+        }else{
+            for(int i = 0; i < NUMBER_OF_NODE_IN_SUBDOMAIN; i++){
+                for(int j = 0; j < option.dim; j++)
+                    node_xyz[i] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
+                                + global.subdomain.nodal_displacement_sd[point][i][j];
+                
+                trial_u(node_xyz, point, current_point_XYZ, u_h, 0);
+
+                for(int j = 0; j < option.dim; j++)
+                    global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];                
+            }
+        }
+    }
+
 }
 
 void increment_field(){
@@ -927,3 +978,48 @@ void update_plastic_strains(double plastic_strains[6], const double stresses[6],
         += 2.0 * factor * deviatoric_stresses[i];
 }
 
+void whether_points_is_in_the_subdomain(){
+    double face_node_XYZ[4][3];
+    int node_id[4];
+    int subdomain_node[8];
+    double edge_1[3]; 
+    double edge_2[3];
+    double cross[3];
+    double point1[3];
+    double point2[3];
+    double current_point_XYZ1[3];
+    double current_point_XYZ2[3];
+
+
+    for(int i = 0; i < global.subdomain.N_int_boundary; i++){
+        int reference_point = global.subdomain.pair_point_ib[2*i];
+        int neighbor_point = global.subdomain.pair_point_ib[2* i + 1];
+
+        for(int j = 0; j < option.dim; j++){
+            current_point_XYZ1[j] = global.subdomain.point_XYZ[option.dim * reference_point + j] + global.subdomain.displacement[reference_point][j];
+            current_point_XYZ2[j] = global.subdomain.point_XYZ[option.dim * neighbor_point + j] + global.subdomain.displacement[neighbor_point][j];
+        }
+
+        for(int j = 0; j < 8; j++){
+            subdomain_node[j] = global.subdomain.subdomain_node[8 * reference_point + j];
+        }
+
+        generate_node_id(global.subdomain.shared_face[i], reference_point, subdomain_node, node_id);
+        
+        generate_current_face_node(face_node_XYZ, node_id, subdomain_node, reference_point);
+
+        for(int j = 0; j < option.dim; j++){
+            edge_1[j] = face_node_XYZ[3][j] - face_node_XYZ[1][j];
+            edge_2[j] = face_node_XYZ[0][j] - face_node_XYZ[1][j];
+            point1[j] = current_point_XYZ1[j] - face_node_XYZ[1][j];
+            point2[j] = current_point_XYZ2[j] - face_node_XYZ[1][j];
+        }
+        cross_product(option.dim, edge_1, edge_2, cross);
+        double a = dot_product(option.dim, cross, point1);
+        double b = dot_product(option.dim, cross, point2);
+
+        if((a > 0 && b > 0) || (a < 0 && b < 0)){
+            printf("overray was occured! ===> reference => %5d neighbor => %5d\n", reference_point, neighbor_point);
+        }
+    }
+}

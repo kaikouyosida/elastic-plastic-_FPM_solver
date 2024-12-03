@@ -89,3 +89,47 @@ void Paradiso(int n, int nnz, double *a, int *ia, int *ja, double *b, double *x)
     phase = -1;
     pardiso(pt, &maxfct, &mnum, &mtype, &phase, &n, a, ia, ja, NULL, &nrhs, iparm, &msglvl, b, x, &error);
 }
+
+
+
+#define EPSILON 1e-10 // 特異値がこれ以下の場合、ゼロとみなす
+
+//LAPACKE_dgesvdを使用してランクの計算を行う
+int calculate_rank(double *matrix, int n) {
+    // 行列の特異値分解用の配列
+    double *s = (double *)malloc(n * sizeof(double));   // 特異値
+    double *u = (double *)malloc(n * n * sizeof(double)); // U行列（省略可）
+    double *vt = (double *)malloc(n * n * sizeof(double)); // V^T行列（省略可）
+    double *superb = (double *)malloc((n - 1) * sizeof(double)); // 中間計算用
+
+    if (!s || !u || !vt || !superb) {
+        fprintf(stderr, "メモリの確保に失敗しました。\n");
+        exit(1);
+    }
+
+    // LAPACKE_dgesvd: 特異値分解
+    int info = LAPACKE_dgesvd(LAPACK_ROW_MAJOR, 'A', 'A', n, n, matrix, n, s, u, n, vt, n, superb);
+
+    if (info > 0) {
+        fprintf(stderr, "特異値分解が収束しませんでした。\n");
+        free(s); free(u); free(vt); free(superb);
+        return -1;
+    }
+
+    // 特異値からランクを計算
+    int rank = 0;
+    for (int i = 0; i < n; i++) {
+        if (s[i] > EPSILON) {
+            rank++;
+        }
+    }
+
+    // メモリ解放
+    free(s);
+    free(u);
+    free(vt);
+    free(superb);
+
+    return rank;
+}
+

@@ -48,6 +48,7 @@ void analize_by_NewtonRaphson(){
          && global.subdomain.point_XYZ[3*i+1] < 3.0 - 1.0e-5 && global.subdomain.point_XYZ[3*i+1] > 1.0e-5){
             global.subdomain.point_XYZ[3*i] += 0.01;
             global.subdomain.point_XYZ[3*i+1] += 0.01;
+            global.subdomain.point_XYZ[3*i+2] -= 0.01;
         }else if(global.subdomain.point_XYZ[3*i+1] < 0.5 && global.subdomain.point_XYZ[3*i+1] >1.0e-5){
             global.subdomain.point_XYZ[3*i+2] -= 0.01;
         }
@@ -70,22 +71,23 @@ void analize_by_NewtonRaphson(){
         #endif
 
         for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
-   
+
             //変形勾配テンソル、応力、歪みを更新＋内力ベクトルの更新
             update_field_and_internal_forces();
-      
+            printf("debug1\n");
             //外力ベクトルの更新
             update_external_force(time_step);
-  
+            printf("debug2\n");
             //係数マトリクスの更新
             generate_coefficient_matrix();
-           
+            printf("debug3\n");
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
 
             fprintf(fp_residual, "%5d  %+15.14e %+15.14e\n", iteration_step, residual_norm, u_norm);
-            
+            printf("debug4\n");
             printf("Error:%+15.14e %+15.14e\n", residual_norm, u_norm);
+            printf("debug5\n");
             //収束判定（residual_normが閾値を超えたら反復計算を終了)
             #if 0
             if(residual_norm < option.NR_tol || u_norm < option.NR_tol){
@@ -98,6 +100,7 @@ void analize_by_NewtonRaphson(){
                 }
             }
             #endif
+
             if(u_norm < option.NR_tol){
                 printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration_step, u_norm);
                 break;
@@ -105,7 +108,7 @@ void analize_by_NewtonRaphson(){
             
             //係数マトリクスにディリクレ境界条件を付与
             ImposeDirichletTangentialMatrix();
-            
+            printf("debug6\n");
             //求解用の変数ベクトルと係数マトリクスを用意.LU分解で連立一次方程式を求解.
             int solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
             
@@ -122,6 +125,11 @@ void analize_by_NewtonRaphson(){
                 exit(-1);
             }
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
+            printf("debug7\n");
+            #if 0
+            int rank = calculate_rank(K_u, solver_DoF);
+            printf("rank = %7d\n", rank);
+            #endif
     
             //連立一次方程式を求解
             //solver_LU_decomposition(K_u, du, r, solver_DoF);
@@ -164,7 +172,7 @@ void analize_by_NewtonRaphson(){
 
             Paradiso(solver_DoF, NNZ, a, ia, ja, r, du);
             #endif
-        
+            printf("debug8\n");
             //ポイントの変位修正ベクトルの値をもとに変位増分を更新.
             if((current_point_xyz = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("current_point_xyz's memory is not enough\n");
@@ -181,7 +189,7 @@ void analize_by_NewtonRaphson(){
             }
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
-
+            printf("debug9\n");
             u_norm = 0;
             for(int i = 0; i < solver_DoF; i++){
                 u_norm += du[i] * du[i];
@@ -201,7 +209,8 @@ void analize_by_NewtonRaphson(){
 
             //ノード変位の増分を更新
             update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
-
+            //update_nodal_displacement_increment(current_point_xyz, Initial_point_XYZ);
+            printf("debug10\n");
             free(Initial_point_XYZ);
             free(current_point_xyz);
             free(K_u);
@@ -217,6 +226,8 @@ void analize_by_NewtonRaphson(){
         fclose(fp_residual);
         
         increment_field();
+
+        whether_points_is_in_the_subdomain();
 
         if((time_step + 1) % option.time_output == 0)
             Output_data(time_step);
@@ -243,6 +254,7 @@ void infinitesimal_analization(){
     double *du;
     double *r;
     double *K_u;
+    double u_norm;
 
     FILE *fp_debug;
     char File_name[128];
@@ -260,7 +272,9 @@ void infinitesimal_analization(){
         }
         fprintf(fp_residual, "iteration         /     error norm\n");
         #endif
-        
+        u_norm = 100.0;
+        option.time = option.Delta_time * (time_step + 1);
+        option.time_old = option.Delta_time * time_step;
         for(int iteration = 0; iteration < max_iteration_count; iteration++){
             //内力ベクトルの更新
             update_field_and_internal_infinitesimal();
@@ -276,13 +290,14 @@ void infinitesimal_analization(){
 
             //収束判定
             residual_norm = calc_global_force_residual_norm(time_step);
+            
             fprintf(fp_residual, "%5d   %+15.14e\n", iteration, residual_norm);
             printf("Residual force updated!\n");
-            printf("%5d  %+15.14e\n", iteration, residual_norm);
+            printf("Error:%+15.14e %+15.14e\n", residual_norm, u_norm);
             
 
-            if(residual_norm <= option.NR_tol){
-                printf("time: %d  iteration: %d => norm: %+15.14e\n", time_step, iteration, residual_norm);
+            if(u_norm <= option.NR_tol){
+                printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration, u_norm);
                 break;
             }
             
@@ -309,8 +324,8 @@ void infinitesimal_analization(){
             printf("Matrix assemble updated!\n");
 
             //連立一次方程式を求解
-            solver_LU_decomposition(K_u, du, r, solver_DoF);
-            #if 0
+            //solver_LU_decomposition(K_u, du, r, solver_DoF);
+            #if 1
             //LU分解で疎行列の連立一次方程式を計算
             int NNZ = 0;
             double *a;
@@ -354,6 +369,11 @@ void infinitesimal_analization(){
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
             printf("Displacement increment updated!\n");
+            
+            u_norm = 0;
+            for(int i = 0; i < solver_DoF; i++){
+                u_norm += du[i] * du[i];
+            }
 
             free(K_u);
             free(r);
@@ -390,85 +410,4 @@ void infinitesimal_analization(){
         #endif
     }
    
-}
-
-void Linear_analization(){
-    FILE *fp_debug;
-    double *f_ext;
-    double *deformation;
-    double *du;
-    double *K_u;            //求解用の接線剛性マトリクス
-    double *r;              //求解用の残差ベクトル
-
-    option.time_old = 0.;
-    option.time = 1.0;
-    //変数のメモリ確保＋初期値を格納
-    init_field();
-
-    //外力ベクトルの更新
-    update_external_force(0);
-
-    
-    generate_coefficient_linear();
-    global.buf = calc_global_force_residual_norm(0);
-    ImposeDirichletTangentialMatrix();
-    
-    //求解用の変数ベクトルを用意
-     if((du = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-        printf("Error: du's Memory is not enough\n");
-        exit(-1);
-    }
-    printf("Now solving!!\n");
-    //求解用の変数ベクトルと係数マトリクスを用意.LU分解で連立一次方程式を求解.
-    int solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
-
-    if((deformation = (double *)calloc(global.subdomain.N_point * option.dim, sizeof(double))) == NULL){
-        printf("Error:deforamtion's memory is not enough\n");
-        exit(-1);
-    }
-    if((du = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
-        printf("Error:du's memory is not enough\n");
-        exit(-1);
-    }
-    if((r = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
-        printf("Error:r's memory is not enough\n");
-        exit(-1);
-    }
-    if((K_u = (double *)calloc(solver_DoF * solver_DoF, sizeof(double))) == NULL){
-        printf("Error:K_u's memory is not enough\n");
-        exit(-1);
-    }
-    assemble_matrix_and_vector_for_Dirichlet(K_u, r);
-    //printf("Now solving!!\n");
-    solver_LU_decomposition(K_u, du, r, solver_DoF);
-    #if 0
-        fp_debug = fopen("debug.dat", "w");
-        for(int i = 0; i < global.subdomain.N_point; i++){
-            for(int j = 0; j < 3; j++){
-                fprintf(fp_debug, "%+15.14e  ", global.subdomain.global_residual_force[i*3+j]);
-            }
-            fprintf(fp_debug, "\n");
-        }
-        fclose(fp_debug);
-        exit(-1);
-    #endif
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        for(int j = 0; j < option.dim; j++){
-            for(int k = 0; k < global.bc.N_D_DoF; k++)
-                if(option.dim * i + j == global.bc.fixed_dof[k]) flag++;
-            if(flag == 0){
-                deformation[option.dim * i + j] += du[count];
-                count++;
-            }
-            flag = 0;   
-        }
-    }
-    printf("status1\n");
-    Output_Linear_strain_data(deformation);
-        
-    free(K_u);
-    free(r);
-    free(du);
-    free(deformation);
-    break_field();
 }

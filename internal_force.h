@@ -25,6 +25,8 @@ void update_point_displaecment_increment(double *du);
 
 //節点変位の増分を更新
 void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz);
+void update_nodal_displacement_increment(double *current_point_XYZ, double *Initial_point_xyz);
+
 
 //変位、応力等などの更新
 void increment_field();
@@ -34,3 +36,6 @@ double incremental_deformation_norm();
 
 //塑性ひずみの更新
 void update_plastic_strains(double plastic_strains[6], const double stresses[6], const double equivarent_stresses, const double equivarent_strain_increment);
+
+//サブドメインの中にポイントが１つづつ含まれているか判定
+void whether_points_is_in_the_subdomain();

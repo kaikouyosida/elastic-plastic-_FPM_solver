@@ -15,14 +15,5 @@ void generate_subdomain_coefficient_matrix_for_PenaltyTerm(const int point_n1, c
 void generate_subdomain_coefficient_matrix_for_StabilizationTerm(const int point_n1, const int point_n2, const int face_n, const int flag);
 
 //剛性マトリクスを要素→全体へ組み立てる
-void assemble_coefficient_matrix(double (*element_K)[60], double *Global_K, int point_n1, int point_n2);
+void assemble_coefficient_matrix(double (*element_K)[180], double *Global_K, int point_n1, int point_n2);
 
-//線形弾性のルーチン
-//係数マトリクスの計算
-void generate_coefficient_linear();
-
-//ペナルティ項を計算
-void generate_Linear_coefficient_penalty(int face_n, int point_n1, int point_n2, double (*ke_matrix)[60], int flag);
-
-//ペナルティ項を計算（安定化項）
-void generate_Linear_coefficient_stabilization(int face_n, int point_n1, int point_n2, double (*ke_matrix)[60], int flag);

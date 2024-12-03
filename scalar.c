@@ -210,87 +210,6 @@ double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X){
     return result;
 }
 
-//面積変化率（dΓ*/dΓ0)の計算
-double generate_area_change_parameter(int subdomain_n1, int subdomain_n2, int face_n, int *vertex_offset, double face_node_XYZ[4][3], double *center_xyz){
-    double trial_elastic_left_cauchy_green_deformations1[3][3];     //trial strainから計算したサブドメイン１の左Cauchyグリーンテンソル
-    double trial_elastic_strain_tensor1[3][3];                      //サブドメイン1の試行ひずみテンソル
-    double trial_elastic_left_cauchy_green_deformations2[3][3];     //trial strainから計算したサブドメイン2の左Cauchyグリーンテンソル
-    double trial_elastic_strain_tensor2[3][3];                      //サブドメイン2の試行ひずみテンソル
-    double trial_elastic_strains1[6];                               //サブドメイン1のひずみテンソルのvoigt表記
-    double trial_elastic_strains2[6];                               //サブドメイン2のひずみテンソルのvoigt表記
-    double trial_elastic_left_cauchy_green_deformations[3][3];      //平均化された左Cauchyグリーンテンソル
-    double deformation_gradients[3][3];                             //平均化された変形勾配テンソル
-    double Ne[3];                                                   //法線ベクトル
-    double inverse_deformation_gradient;                            //体積変化率
-    double area_change_parameter = 0.;                              //Γ*の面積変化率
-
-    for(int i = 0; i < 6; i++){
-        trial_elastic_strains1[i] = global.subdomain.trial_elastic_strains[subdomain_n1][i];
-        trial_elastic_strains2[i] = global.subdomain.trial_elastic_strains[subdomain_n2][i];
-    }
-    
-    //subdomain1の試行弾性左コーシーグリーンテンソルの計算
-    trial_elastic_strain_tensor1[0][0] = 2.0 * trial_elastic_strains1[0];
-    trial_elastic_strain_tensor1[0][1] = 2.0 * 0.5 * trial_elastic_strains1[3];
-    trial_elastic_strain_tensor1[0][2] = 2.0 * 0.5 * trial_elastic_strains1[5];
-    trial_elastic_strain_tensor1[1][0] = 2.0 * 0.5 * trial_elastic_strains1[3];
-    trial_elastic_strain_tensor1[1][1] = 2.0 * trial_elastic_strains1[1];
-    trial_elastic_strain_tensor1[1][2] = 2.0 * 0.5 * trial_elastic_strains1[4];
-    trial_elastic_strain_tensor1[2][0] = 2.0 * 0.5 * trial_elastic_strains1[5];
-    trial_elastic_strain_tensor1[2][1] = 2.0 * 0.5 * trial_elastic_strains1[4];
-    trial_elastic_strain_tensor1[2][2] = 2.0 * trial_elastic_strains1[2];
-
-    calculateTensorExponent(trial_elastic_left_cauchy_green_deformations1,
-                            trial_elastic_strain_tensor1);
-
-    //subdomain2の試行弾性左コーシーグリーンテンソルの計算
-    trial_elastic_strain_tensor2[0][0] = 2.0 * trial_elastic_strains2[0];
-    trial_elastic_strain_tensor2[0][1] = 2.0 * 0.5 * trial_elastic_strains2[3];
-    trial_elastic_strain_tensor2[0][2] = 2.0 * 0.5 * trial_elastic_strains2[5];
-    trial_elastic_strain_tensor2[1][0] = 2.0 * 0.5 * trial_elastic_strains2[3];
-    trial_elastic_strain_tensor2[1][1] = 2.0 * trial_elastic_strains2[1];
-    trial_elastic_strain_tensor2[1][2] = 2.0 * 0.5 * trial_elastic_strains2[4];
-    trial_elastic_strain_tensor2[2][0] = 2.0 * 0.5 * trial_elastic_strains2[5];
-    trial_elastic_strain_tensor2[2][1] = 2.0 * 0.5 * trial_elastic_strains2[4];
-    trial_elastic_strain_tensor2[2][2] = 2.0 * trial_elastic_strains2[2];
-
-    calculateTensorExponent(trial_elastic_left_cauchy_green_deformations2,
-                            trial_elastic_strain_tensor2);
-    
-    calc_unit_vector(Ne, global.subdomain.shared_face[face_n], subdomain_n1, subdomain_n2, center_xyz);
-
-    //内部境界Γ*での左Cauchyグリーンテンソルを計算(B+とB-の平均値)
-    for(int i = 0; i < option.dim; i++){
-        for(int j = 0; j < option.dim; j++){
-            trial_elastic_left_cauchy_green_deformations[i][j]
-                = 0.5 * (trial_elastic_left_cauchy_green_deformations1[i][j] + trial_elastic_left_cauchy_green_deformations2[i][j]);
-        }
-    }
-
-    //体積変化率の計算.内部境界を共有するサブドメインどうしの変形勾配の平均がとられ、そのデターミナントを計算.
-    for(int i = 0; i < option.dim; i++){
-        for(int j = 0; j < option.dim; j++){
-            deformation_gradients[i][j] 
-                = 0.5 * (global.subdomain.current_deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face_n]] 
-                        + global.subdomain.current_deformation_gradients[i][j][global.subdomain.pair_point_ib[2 * face_n + 1]]);
-        }
-    }
-
-    inverse_deformation_gradient = 1.0 / calc_3x3matrix_determinant(deformation_gradients);
-    
-    for(int i = 0; i < option.dim; i++){
-        double nB_i = 0.;
-        for(int j = 0; j < option.dim; j++){
-            nB_i += Ne[j] * trial_elastic_left_cauchy_green_deformations[j][i];
-        }
-        area_change_parameter += nB_i * Ne[i];
-    }
-
-    area_change_parameter = inverse_deformation_gradient * sqrt(area_change_parameter);
-
-    return area_change_parameter;
-}
-
 //内積を計算する
 double dot_product(int N, double *vec1, double *vec2)
 {
@@ -332,7 +251,7 @@ double norm_for_mat(double **vec, int m ,int n){
     return sqrt(s);
 }
 
-//ポイントの距離を計算する
+//ポイントi,jの距離を計算する
 double distance(int dim, int i, int j, double *point_xyz)
 {
 	double d = 0.;

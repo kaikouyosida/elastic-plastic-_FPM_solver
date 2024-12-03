@@ -4,7 +4,9 @@
 
 #include<stdio.h>
 #include<stdlib.h>
+#include<math.h>
 #include"type.h"
+#include"scalar.h"
 #include"matrix.h"
 #include"b_matrix.h"
 
@@ -26,8 +28,18 @@ void calc_G(const int dim, const int point_n, const double *point_xyz, const int
     for (int i = 0; i < N_support; i++)
     {
         support_point = support[support_offset[point_n] + i];
-        for (int j = 0; j < dim; j++)
+        for (int j = 0; j < dim; j++){
+
             A[i][j] = point_xyz[dim * support_point + j] - point_xyz[dim * point_n + j];
+
+            // if(isnan(A[i][j])){
+            //     double a = distance(3, point_n, support_point, point_xyz);
+            //     printf("point:point: %5d sup_point: %5d distance %15.14e\n", point_n, support_point, a);
+            //     for(int m = 0; m < 3; m++){
+            //         printf("Differ: point_n⇒%+15.14e support⇒%+15.14e\n", point_xyz[3*point_n+m],point_xyz[3*support_point+m]);
+            //     }
+            // }
+        }
     }
 
     G1 = matrix(dim, N_support + 1);
@@ -242,7 +254,7 @@ void calc_shape(const double *xyz, const int dim, const int point_n, const doubl
 void trial_u(const double *xyz, const int point_n, const double *point_XYZ, double *u_h, const int pm){
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
     double *u;
-    double shapeF_t[60][3];
+    double shapeF_t[180][3];
 
     if((u = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:u's memory is not enough\n");

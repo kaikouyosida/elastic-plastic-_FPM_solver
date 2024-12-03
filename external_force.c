@@ -25,12 +25,12 @@ void update_external_force(int time){
     const int N_qu = 1;                     //積分点数
     double xyz[3];                          //積分点の座標
     double t_force[3];                      //トラクションのベクトル    
-    double NT[60][3];                       //形状関数
+    double NT[180][3];                       //形状関数
     double face_node_XYZ[4][3];             //面を構成する頂点座標
     double X[27], w[27];                    //ガウス点と重み関数
     double mapping_parameter;               //座標変換のための因子
     double *current_point_XYZ;              //現配置のポイントの座標
-    double subdomain_external_force[60];    //サブドメイン単位での外力ベクトル
+    double subdomain_external_force[180];    //サブドメイン単位での外力ベクトル
     double lambda;                          //(ステップ数) / (最終ステップ数)     
 
     lambda = ((double)time + 1.0) / (double)option.N_timestep;

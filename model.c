@@ -72,7 +72,7 @@ void Init_model()
     fscanf(fp_material, "%lf %lf\n", &ss_curve.plastic_strain[i], &ss_curve.stress[i]);
     fscanf(fp_material, "%lf\n", &global.material.kinematic_hardening_fractions);
     fclose(fp_material);
-    
+
     global.material.penalty = option.magni * global.material.E_mod;
 
     FILE *fp_subdomain;

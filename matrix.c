@@ -152,6 +152,12 @@ void inverse_mat(int mn, double** A, double** inverse_A){
 	for(int i = 0; i < mn; i++){
 		double diag = aug[i][i];
         if (diag == 0){
+			// for(int m = 0; m < mn; m++){
+			// 	for(int n = 0; n < mn; n++){
+			// 		printf("%+15.14e  ",A[m][n]);
+			// 	}
+			// 	printf("\n");
+			// }
             printf("Inverse matrix is not exist!\n");
             exit(-1);
         }
