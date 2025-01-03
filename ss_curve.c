@@ -49,7 +49,6 @@ double get_hardening_stress(const double equivalent_plastic_strain){
             double dep = ss_curve.plastic_strain[i + 1] - ss_curve.plastic_strain[i];
             double dep_i0 = equivalent_plastic_strain - ss_curve.plastic_strain[i];
             double dep_i1 = ss_curve.plastic_strain[i + 1] - equivalent_plastic_strain;
-            //printf("%5d  %+15.14e\n", i, (dep_i1 * sy_i0 + dep_i0 * sy_i1) / dep);
             return (dep_i1 * sy_i0 + dep_i0 * sy_i1) / dep;
         }
     #if 0

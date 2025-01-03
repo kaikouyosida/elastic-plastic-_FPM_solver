@@ -212,7 +212,7 @@ void update_field_and_internal_forces(){
         //試行相対相当応力の計算(sigma^trial_e)
         trial_relative_equivalent_stress
                 = calc_equivalent_stress(trial_relative_stresses);
-    
+        
         if (trial_relative_equivalent_stress <= (*yield_stress))
             {   
                 *equivalent_plastic_strain_increment = 0.0;
@@ -220,7 +220,6 @@ void update_field_and_internal_forces(){
                 for (int i = 0; i < 6; i++)
                     current_back_stresses[i] = back_stresses[i];
             }else{
-                //printf("Plastic Zone: %5d\n", point);
                 
                 double hardening_stress_increment;
                 double current_relative_hydrostatic_stress;
@@ -234,8 +233,7 @@ void update_field_and_internal_forces(){
                 //硬化応力増分の計算
                 hardening_stress_increment
                     = get_hardening_stress((*equivalent_plastic_strain) + (*equivalent_plastic_strain_increment))
-                    - get_hardening_stress((*equivalent_plastic_strain));
-                
+                    - get_hardening_stress(*equivalent_plastic_strain);
                
                 //試行相対偏差応力の計算
                 current_relative_hydrostatic_stress
@@ -248,7 +246,7 @@ void update_field_and_internal_forces(){
                 trial_relative_stresses[2] -= current_relative_hydrostatic_stress;
 
 
-                //最終的な弾性応力の計算
+                //最終的な対数ひずみの計算
                 factor
                     = (*equivalent_plastic_strain_increment)
                     * 1.5
@@ -274,6 +272,7 @@ void update_field_and_internal_forces(){
                     current_back_stresses[i]
                         = back_stresses[i]
                         + factor * trial_relative_stresses[i];   
+
                 //最終的な応力の計算
                 factor
                         = (*current_yield_stress)
@@ -285,21 +284,24 @@ void update_field_and_internal_forces(){
                 current_stresses[0] += current_relative_hydrostatic_stress;
                 current_stresses[1] += current_relative_hydrostatic_stress;
                 current_stresses[2] += current_relative_hydrostatic_stress; 
+
+                //降伏曲面を更新            
+                *yield_stress = *current_yield_stress;
             }
 
             //Kirchhoff応力からCauchy応力の計算
-            double inverse_volume_change
+            const double inverse_volume_change
                 = 1.0 / calc_3x3matrix_determinant(current_deformation_gradients);
 
             for (int i = 0; i < 6; i++)
                 current_stresses[i] *= inverse_volume_change;
 
-            
             for(int i = 0; i < option.dim; i++){
                 for(int j = 0; j < option.dim; j++){
                     global.subdomain.current_deformation_gradients[i][j][point] = current_deformation_gradients[i][j];
                 }
             }
+
     }
     
     //内力ベクトルの体積積分項を計算
@@ -595,7 +597,7 @@ void calc_internal_force_penalty_stabilization(){
                         calc_shape(xyz, option.dim, global.subdomain.pair_point_ib[2 * face + j], current_point_XYZ, global.subdomain.support_offset, NT);
 
                         //サブドメインpair_point_ib[2 * face + i]の試行関数を計算
-                        trial_u(xyz, global.subdomain.pair_point_ib[2 * face + i], current_point_XYZ, u_h, 0);
+                        trial_u(xyz, global.subdomain.pair_point_ib[2 * face + i], current_point_XYZ, u_h, 1);
 
                         //要素内力ベクトルの計算
                         for(int k = 0; k < option.dim * (N_support + 1); k++){
@@ -728,7 +730,7 @@ void update_field_and_internal_infinitesimal(){
             for (int i = 0; i < 6; i++)
                 current_back_stresses[i] = back_stresses[i];
         }else{
-            printf("Plastic zone: %d\n", point);
+            //printf("Plastic zone: %d\n", point);
             double hardening_stress_increment;
             double current_relative_hydrostatic_stress;
 
@@ -789,6 +791,9 @@ void update_field_and_internal_infinitesimal(){
             current_stresses[0] += current_relative_hydrostatic_stress;
             current_stresses[1] += current_relative_hydrostatic_stress;
             current_stresses[2] += current_relative_hydrostatic_stress;
+
+            //降伏曲面を更新
+            *yield_stress = *current_yield_stress;
         }
         #if 0
         if(point == 100){
@@ -989,7 +994,12 @@ void whether_points_is_in_the_subdomain(){
     double point2[3];
     double current_point_XYZ1[3];
     double current_point_XYZ2[3];
-
+    int node_id_ref[4];
+    int node_id_nei[4];
+    double subdomain_node_ref[8];
+    double subdomain_node_nei[8];
+    double face_node_XYZ_ref[4][3];
+    double face_node_XYZ_nei[4][3];
 
     for(int i = 0; i < global.subdomain.N_int_boundary; i++){
         int reference_point = global.subdomain.pair_point_ib[2*i];
@@ -1020,6 +1030,47 @@ void whether_points_is_in_the_subdomain(){
 
         if((a > 0 && b > 0) || (a < 0 && b < 0)){
             printf("overray was occured! ===> reference => %5d neighbor => %5d\n", reference_point, neighbor_point);
+
+        for(int j = 0; j < option.dim; j++){
+            printf("%+15.14e    ", global.subdomain.point_XYZ[option.dim * reference_point + j]
+                                    + global.subdomain.displacement[reference_point][j]);
         }
+        printf("\n");
+            // for(int j = 0; j < 8; j++){
+            //     subdomain_node_ref[j] = global.subdomain.subdomain_node[8 * reference_point + j];
+            //     subdomain_node_nei[j] = global.subdomain.subdomain_node[8 * neighbor_point + j];
+            // }
+
+            // generate_node_id(i, reference_point, subdomain_node_ref, node_id_ref);
+            // generate_node_id(i, neighbor_point, subdomain_node_nei, node_id_nei);
+
+            // generate_current_face_node(face_node_XYZ_ref, node_id_ref, subdomain_node_ref, reference_point);
+            // generate_current_face_node(face_node_XYZ_nei, node_id_nei, subdomain_node_nei, neighbor_point);
+            // for(int j = 0; j < option.dim; j++){
+            //     printf("%+15.14e    ", global.subdomain.point_XYZ[option.dim * reference_point + j]);
+            // }
+            // printf("\n");
+            
+            // for(int j = 0; j < 4; j++){
+            //     for(int k = 0; k < option.dim; k++){
+            //         printf("%+15.14e    ", face_node_XYZ_ref[j][k]);
+            //     }
+            //     printf("\n");
+            // }
+            
+            // for(int j = 0; j < option.dim; j++){
+            //     printf("%+15.14e    ", global.subdomain.point_XYZ[option.dim * neighbor_point + j]);
+            // }
+            
+            // for(int j = 0; j < 4; j++){
+            //     for(int k = 0; k < option.dim; k++){
+            //         printf("%+15.14e    ", face_node_XYZ_nei[j][k]);
+            //     }
+            //     printf("\n");
+            // }
+
+        }
+
+        
     }
 }

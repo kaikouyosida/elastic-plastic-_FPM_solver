@@ -163,7 +163,7 @@ void Output_data(int time_step){
         fclose(fp_volume);
     }
 
-    snprintf(FILE_name, 238, "Data_Files_Output/Output_nodal_deformation%d.dat", time_step);
+    snprintf(FILE_name, 128, "Data_Files_Output/Output_nodal_deformation%d.dat", time_step);
     fp_deformation = fopen(FILE_name, "w");
     if(fp_deformation == NULL){
         printf("File is not open\n");
@@ -182,6 +182,7 @@ void Output_data(int time_step){
         fprintf(fp_deformation, "\n");
     }
     fclose(fp_deformation);
+
 }
 
 //応力を抽出して出力

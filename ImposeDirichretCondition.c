@@ -8,7 +8,6 @@
 #include "type.h"
 #include "ImposeDirichretCondition.h"
 
-
 extern Option option;
 extern Global global;
 
@@ -23,9 +22,9 @@ double fixed_deformation(double time, double time_end, double x1, double x2, dou
   
   else if(type == 1){
     // 変位を固定 //
-		fixed_u = 0.01 * time / time_end;
+		fixed_u = 1.0 * time / time_end;
 	}
-  
+
   else if(type == 2){
     // x軸方向のTimoshenko梁の変位固定 //
 		double E_mod = global.material.E_mod;
@@ -239,49 +238,4 @@ void assemble_matrix_and_vector_for_Dirichlet(double *K_u, double *residual){
 
   free(checker_vector);
 
-}
-
-//残差ベクトルと係数マトリクスを求解用にアセンブリ(線形弾性用)
-void assemble_matrix_and_vector_for_Dirichlet_Linear(double *K_u, double *deformation, double *residual){
-  int DoF_free = option.dim * global.subdomain.N_point;
-  int flag = 0;
-  int count = 0;
-
-  //残差ベクトルからディリクレ境界条件が反映される自由度を削除
-  for(int i = 0; i < global.subdomain.N_point; i++){
-    for(int j = 0; j < option.dim; j++){
-      for(int k = 0; k < global.bc.N_D_DoF; k++)
-        if(option.dim * i + j == global.bc.fixed_dof[k]){
-          flag = 1;
-          break;
-        }
-
-        if(flag != 1){
-          residual[count] = global.subdomain.global_residual_force[i][j];
-          count++;
-        }else{
-          deformation[option.dim * i + j] += global.subdomain.global_residual_force[i][j];
-        }
-
-        flag = 0;
-    }
-  }
-  count = 0;
-
-  //係数マトリクスからディリクレ境界条件が反映される自由度を削除
-  for(int i = 0; i < DoF_free; i++){
-    for(int j = 0; j < DoF_free; j++){
-      for(int k = 0; k < global.bc.N_D_DoF; k++){
-        if(i == global.bc.fixed_dof[k] || j == global.bc.fixed_dof[k]){ 
-          flag = 1;
-          break;
-        }
-      }
-      if(flag != 1){
-        K_u[count] = global.subdomain.Global_K[DoF_free * i + j];
-        count++;
-      }
-      flag = 0;
-    }
-  }
 }

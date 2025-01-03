@@ -440,7 +440,7 @@ void calculateEigenvalues(double eigenvalues[3],
                           double tensor[3][3])
 #if 1
 {
-    double discriminant_tolerance = 1.0e-4;
+    double discriminant_tolerance = 1.0e-20;
 
     double square_tensor[3][3];
     double i1, i2, i3;
