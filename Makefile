@@ -41,5 +41,9 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-clean:
+clean1:
+	-rm -f $(OBJS) $(TARGET)
+	
+clean2:
+	make clean -C Data_Files_Input
 	-rm -f $(OBJS) $(TARGET)

@@ -146,76 +146,68 @@ void modify_d_matrix_with_finite_strain(double (*d_matrix)[6], const double *cur
 
 //材料非線形性のDマトリクスの計算
 void generate_elastic_plastic_d_matrix(double d_matrix[6][6], const double trial_elastic_strains[6], const double equivalent_plastic_strain, const double equivalent_plastic_strain_increment, const double back_stresses[6]){
+    //体積弾性係数
     const double bulk_modulus = global.material.E_mod / (3.0 * (1.0 - 2.0 * global.material.nu_mod));
+    //せん断弾性係数
     const double shear_modulus = 0.5 * global.material.E_mod / (1.0 + global.material.nu_mod);
+    //硬化係数
     const double hardening_modulus = get_hardening_modulus(equivalent_plastic_strain + equivalent_plastic_strain_increment);
 
-    double temp;
-    double coefficient;
-    double trial_volumetric_strain;
-    double trial_hydrostatic_stress;
-    double trial_relative_equivalent_stress;
-    double trial_relative_deviatoric_stresses[6];
-    double trial_relative_stresses[6];
+    double trial_relative_equivalent_stress;        //試行相対相当応力
+    double trial_relative_deviatoric_stresses[6];   //試行偏差応力
+    double trial_relative_stresses[6];              //試行応力
+    double hydro_static_stress;                     //静水圧
+    double elastic_d_matrix[6][6];                  //弾性Dマトリクス
 
-    //試行弾性ひずみの体積成分
-    trial_volumetric_strain
-        = trial_elastic_strains[0]
-        + trial_elastic_strains[1]
-        + trial_elastic_strains[2];
+    //l_d = 0.5 * (δ_ik * δ_jl + δ_il * δ_jk) - δ_ij * δ_kl / 3.0
+    double l_d[6][6] = {{2.0 / 3.0, -1.0 / 3.0, -1.0 / 3.0, 0, 0, 0}, 
+                        {-1.0 / 3.0, 2.0 / 3.0, -1.0 / 3.0, 0, 0, 0}, 
+                        {-1.0 / 3.0, -1.0 / 3.0, 2.0 / 3.0, 0, 0, 0},
+                        {0, 0, 0, 1.0 / 2.0, 0, 0}, 
+                        {0, 0, 0, 0, 1.0 / 2.0, 0}, 
+                        {0, 0, 0, 0, 0, 1.0 / 2.0}};
+
+    //δ = δij * δkl
+    double delta_matrix[6][6] = {{1.0, 1.0, 1.0, 0.0, 0.0, 0.0}
+                                , {1.0, 1.0, 1.0, 0.0, 0.0, 0.0}
+                                , {1.0, 1.0, 1.0, 0.0, 0.0, 0.0}
+                                , {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
+                                , {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
+                                , {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}};
+
     
-    //静水圧の計算
-    trial_hydrostatic_stress = bulk_modulus * trial_volumetric_strain;
+    //試行応力の計算
+    generateElasticDMatrix(elastic_d_matrix);
 
-    //試行相対応力の偏差成分を計算
-    for(int i = 0; i < 3; i++)
-        trial_relative_deviatoric_stresses[i]
-            = 2.0 * shear_modulus
-            * (trial_elastic_strains[i]
-               - trial_volumetric_strain / 3.0)
-            - back_stresses[i];
-    for(int i = 3; i < 6; i++)
-        trial_relative_deviatoric_stresses[i]
-            = 2.0 * shear_modulus
-            * 0.5 * trial_elastic_strains[i]
-            - back_stresses[i];
+    for(int i = 0; i < 6; i++){
+        double trial_relative_stresses_i = 0;
+        for(int j = 0; j < 6; j++){
+            trial_relative_stresses_i += elastic_d_matrix[i][j] * trial_elastic_strains[j];
+        }
+        trial_relative_stresses[i] = trial_relative_stresses_i;
+    }
 
-    //試行相対応力の計算
-    for (int i = 0; i < 3; i++)
-        trial_relative_stresses[i]
-            = trial_relative_deviatoric_stresses[i]
-            + trial_hydrostatic_stress;
-    for (int i = 3; i < 6; i++)
-        trial_relative_stresses[i]
-            = trial_relative_deviatoric_stresses[i];
-    
-    //試行相当相対応力の計算
+    //試行相当応力の計算
     trial_relative_equivalent_stress = calc_equivalent_stress(trial_relative_stresses);
-
-    //弾性Dマトリクスの計算
-    generateElasticDMatrix(d_matrix);
+    
+    //静水圧, 偏差応力の計算
+    hydro_static_stress = (trial_relative_stresses[0] + trial_relative_stresses[1] + trial_relative_stresses[2]) / 3.0;
+    for(int i = 0; i < 3; i++)
+        trial_relative_deviatoric_stresses[i] = trial_relative_stresses[i] - hydro_static_stress;
+    for(int i = 3; i < 6; i++)
+        trial_relative_deviatoric_stresses[i] = trial_relative_stresses[i];
 
     //弾塑性Dマトリクスの計算
-    temp = -equivalent_plastic_strain_increment
-            * 6.0 * shear_modulus * shear_modulus / trial_relative_equivalent_stress;
-    
-    for(int i = 0; i < 3; i++)
-        d_matrix[i][i] += temp;
-    for(int i = 3; i < 6; i++)
-        d_matrix[i][i] += 0.5 * temp;
-    for(int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            d_matrix[i][j] -= temp / 3.0;
-    
-    coefficient
-        = 9.0 * shear_modulus * shear_modulus
-        * (equivalent_plastic_strain_increment / trial_relative_equivalent_stress
-           - 1.0 / (3.0 * shear_modulus + hardening_modulus))
-        / (trial_relative_equivalent_stress * trial_relative_equivalent_stress);
-    for (int i = 0; i < 6; i++)
-        for (int j = 0; j < 6; j++)
-            d_matrix[i][j]
-                += coefficient
-                *  trial_relative_deviatoric_stresses[i]
-                *  trial_relative_deviatoric_stresses[j];
+    for(int i = 0; i < 6; i++){
+        for(int j = 0; j < 6; j++){
+            d_matrix[i][j] = 2.0 * shear_modulus
+                             * (1.0 - 3.0 * shear_modulus * equivalent_plastic_strain_increment / trial_relative_equivalent_stress) * l_d[i][j]
+
+                             + 9.0 * shear_modulus * shear_modulus
+                             * (equivalent_plastic_strain_increment / trial_relative_equivalent_stress - 1.0 /(3.0 * shear_modulus + hardening_modulus))
+                             / trial_relative_equivalent_stress / trial_relative_equivalent_stress * trial_relative_deviatoric_stresses[i] * trial_relative_deviatoric_stresses[j]
+                             
+                             + bulk_modulus * delta_matrix[i][j];
+        }
+    }
 }

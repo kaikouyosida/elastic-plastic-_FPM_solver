@@ -39,3 +39,6 @@ void update_plastic_strains(double plastic_strains[6], const double stresses[6],
 
 //サブドメインの中にポイントが１つづつ含まれているか判定
 void whether_points_is_in_the_subdomain();
+
+//反復回数が既定の回数に到達したら変位増分などを初期化して再計算
+void cut_back();

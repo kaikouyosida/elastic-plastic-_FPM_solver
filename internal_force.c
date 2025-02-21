@@ -29,7 +29,7 @@ double temp;
 #define NUMBER_OF_NODE_IN_SUBDOMAIN 8
 
 void update_field_and_internal_forces(){
-    FILE *fp_debug_fint;
+    long long DoF_Free = option.dim * global.subdomain.N_point; //自由度数
     double d_matrix[6][6];                                      //Dマトリクス
     double inverse_relative_deformation_gradient[3][3];         //相対変形勾配テンソルの逆テンソル
     double relative_deformation_gradient[3][3];                 //相対変形勾配テンソル
@@ -41,7 +41,7 @@ void update_field_and_internal_forces(){
     double trial_relative_stresses[6];                          //試行相対応力
     double b_t_matrix[180][6];                                   //Bマトリクスの転置
     double *current_point_XYZ;                                   //現配置のポイント配置
-    double **G;                                                 //(u = {G}uE）につかうGマトリクス
+    double **G;                                                 //GFD法によって導かれるGマトリクス
     int support[180];                                             //サポートドメイン内のポイント数
     double displacement_increment[3];                           //サポートの変位増分
     double trial_relative_equivalent_stress;
@@ -87,7 +87,7 @@ void update_field_and_internal_forces(){
         //dマトリクスを作成
         generateElasticDMatrix(d_matrix);
         
-        if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        if((current_point_XYZ = (double *)calloc(DoF_Free, sizeof(double))) == NULL){
             printf("Error: Latest_point_XYZ's memory is not enough\n");
             exit(-1);
         }
@@ -188,9 +188,9 @@ void update_field_and_internal_forces(){
         current_elastic_strains[5] = 0.5 * (elastic_strain_tensor[2][0]
                                             + elastic_strain_tensor[0][2]);
 
-          for (int i = 0; i < 6; i++)
-                trial_elastic_strains[i]
-                    = current_elastic_strains[i];        
+        //試行対数ひずみへ受け渡す
+        for (int i = 0; i < 6; i++)
+            trial_elastic_strains[i] = current_elastic_strains[i];        
         
         //試行応力の計算({sigma}^trial = [D] * {epsilon}^trial)
         for (int i = 0; i < 6; i++)
@@ -223,6 +223,8 @@ void update_field_and_internal_forces(){
                 
                 double hardening_stress_increment;
                 double current_relative_hydrostatic_stress;
+                const double three_times_shear_modulus
+                                = 3.0 * 0.5 * global.material.E_mod / (1.0 + global.material.nu_mod);
 
                 //相当塑性ひずみ増分の計算
                 *equivalent_plastic_strain_increment
@@ -275,12 +277,13 @@ void update_field_and_internal_forces(){
 
                 //最終的な応力の計算
                 factor
-                        = (*current_yield_stress)
-                        / trial_relative_equivalent_stress;
-                    for (int i = 0; i < 6; i++)
-                        current_stresses[i]
-                            = current_back_stresses[i]
-                            + factor * trial_relative_stresses[i];
+                    = (*current_yield_stress)
+                    / trial_relative_equivalent_stress;
+                for (int i = 0; i < 6; i++)
+                    current_stresses[i]
+                        = current_back_stresses[i]
+                        + factor * trial_relative_stresses[i];
+
                 current_stresses[0] += current_relative_hydrostatic_stress;
                 current_stresses[1] += current_relative_hydrostatic_stress;
                 current_stresses[2] += current_relative_hydrostatic_stress; 
@@ -544,16 +547,6 @@ void calc_internal_force_penalty_stabilization(){
     for(int face = 0; face < global.subdomain.N_int_boundary; face++){
         //ポイント間の距離を計算
         he = distance(option.dim, global.subdomain.pair_point_ib[2 * face], global.subdomain.pair_point_ib[2 * face + 1], current_point_XYZ);
-        
-        //ペナルティパラメータを局所的スカラー倍する
-        // if(global.subdomain.shared_face[face] == 267 
-        // || global.subdomain.shared_face[face] == 1322
-        // || global.subdomain.shared_face[face] == 271
-        // || global.subdomain.shared_face[face] == 1329){
-        //     if(option.time >= 0.){
-        //         eta = 10.0;
-        //     }
-        // }
 
         //Γ*の頂点の座標を計算（Γ+とΓ-の平均を計算）
         if(option.solver_type == 1){
@@ -627,17 +620,18 @@ double calc_global_force_residual_norm(int iteration_step){
             global.subdomain.global_residual_force[i][j]
                  =  global.subdomain.global_external_force[i][j] - global.subdomain.global_internal_force[i][j];
     
-    
     ImposeDirichretResidual(iteration_step);
   
-
     //外力ベクトルと残差ベクトルのノルムを計算
     global_f_norm = norm_for_mat(global.subdomain.global_external_force, global.subdomain.N_point, option.dim);
     global_r_norm = norm_for_mat(global.subdomain.global_residual_force, global.subdomain.N_point, option.dim);
-
+    
+    option.r_abso_norm = global_r_norm;
+    
     if(iteration_step == 0)
         temp = global_r_norm;
 
+    printf("%+15.14e\n", temp);
     if(fabs(global_f_norm) <= 1.0e-10){
         return global_r_norm / temp;
     }else{
@@ -647,18 +641,18 @@ double calc_global_force_residual_norm(int iteration_step){
 
 //微小変形弾塑性解析における増分
 void update_field_and_internal_infinitesimal(){
-    int  support[180];                   //サブドメインのサポートドメイン
+    int  support[60];                   //サブドメインのサポートドメイン
     double b_t_matrix[180][6];           //Bマトリクス
     double d_matrix[6][6];              //Dマトリクス
     double trial_relative_stresses[6];  //試行相対応力
-
+    
     //全体内力ベクトルを初期化
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
             global.subdomain.global_internal_force[i][j] = 0.;
         }
     }
-
+    
     //各サブドメインの内力ベクトルを計算
     for(int point = 0; point < global.subdomain.N_point; point++){
         int N_support = global.subdomain.support_offset[point + 1] - global.subdomain.support_offset[point];
@@ -681,13 +675,13 @@ void update_field_and_internal_infinitesimal(){
 
         double trial_relative_equivalent_stress;
         double factor;
-
+    
         //bマトリクスの計算
         generate_linear_b_matrix(b_t_matrix, point);
-        
+     
         //dマトリクスの計算
         generateElasticDMatrix(d_matrix);
-
+        
         for(int i = 0; i < 6; i++)
             current_elastic_strains[i] = elastic_strains[i];
         
@@ -730,7 +724,6 @@ void update_field_and_internal_infinitesimal(){
             for (int i = 0; i < 6; i++)
                 current_back_stresses[i] = back_stresses[i];
         }else{
-            //printf("Plastic zone: %d\n", point);
             double hardening_stress_increment;
             double current_relative_hydrostatic_stress;
 
@@ -738,6 +731,7 @@ void update_field_and_internal_infinitesimal(){
             *equivalent_plastic_strain_increment
                 = calc_equivalent_plastic_strain_increment(trial_relative_equivalent_stress, *equivalent_plastic_strain, *yield_stress);
             
+            //硬化応力の更新
             hardening_stress_increment = get_hardening_stress((*equivalent_plastic_strain) + (*equivalent_plastic_strain_increment))
                                         - get_hardening_stress(*equivalent_plastic_strain);
             
@@ -747,7 +741,6 @@ void update_field_and_internal_infinitesimal(){
                 * (trial_relative_stresses[0]
                 +  trial_relative_stresses[1]
                 +  trial_relative_stresses[2]);
-
             trial_relative_stresses[0] -= current_relative_hydrostatic_stress;
             trial_relative_stresses[1] -= current_relative_hydrostatic_stress;
             trial_relative_stresses[2] -= current_relative_hydrostatic_stress;
@@ -791,37 +784,27 @@ void update_field_and_internal_infinitesimal(){
             current_stresses[0] += current_relative_hydrostatic_stress;
             current_stresses[1] += current_relative_hydrostatic_stress;
             current_stresses[2] += current_relative_hydrostatic_stress;
-
-            //降伏曲面を更新
+            
             *yield_stress = *current_yield_stress;
         }
-        #if 0
-        if(point == 100){
-            double stress = calc_equivalent_stress(current_stresses);
-            double dep;
-            dep += *equivalent_plastic_strain_increment;
-            printf("%+8.7e    %8.7e\n", dep , stress);
-        }   
-        #endif
     }
     
-    
+   
     //体積積分項の内力ベクトルの計算
     calc_internal_force_volume(global.subdomain.current_stresses);
-
+   
     //penalty項の内力ベクトルの計算
     calc_internal_force_penalty(global.subdomain.current_stresses);
-
+    
     //安定化項の内力ベクトルの計算
     calc_internal_force_penalty_stabilization();
-    
 }
 
 void update_point_displaecment_increment(double *du){
     int count = 0;
     for(int i = 0; i < global.subdomain.N_point; i++){
         for(int j = 0; j < option.dim; j++){
-            int flag = 0;  
+            int flag = 0; 
             for(int k = 0; k < global.bc.N_D_DoF; k++)
                 if(option.dim * i + j == global.bc.fixed_dof[k]) flag = 1;
             if(flag == 0){
@@ -836,7 +819,7 @@ void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz){
     double node_xyz[3];
     double u_h[3];
 
-    //0をfill-in
+    //u_hに0をfill-in
     for(int i = 0; i < option.dim; i++)
         u_h[i] = 0.;
 
@@ -981,6 +964,20 @@ void update_plastic_strains(double plastic_strains[6], const double stresses[6],
     for(int i = 3; i < 6; i++)
         plastic_strains[i] 
         += 2.0 * factor * deviatoric_stresses[i];
+}
+
+void cut_back(){
+    for(int point = 0;  point < global.subdomain.N_point; point++){
+        for(int i = 0; i < option.dim; i++){
+            global.subdomain.displacement_increment[point][i] = 0.;
+            global.subdomain.equivalent_plastic_strain_increments[point] = 0.;
+        }
+    }
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        for(int i = 0; i < option.dim; i++){
+            global.subdomain.nodal_displacement_increments[node][i] = 0.;
+        }
+    }    
 }
 
 void whether_points_is_in_the_subdomain(){

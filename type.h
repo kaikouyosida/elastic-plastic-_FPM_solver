@@ -13,8 +13,8 @@ typedef struct
     double norm_comp;       //サブドメインごとの残差ノルム
     double R_max;           //norm_compの最大値
     double R_first;         //R_maxの最大値
-    double Error_NR;        //ニュートンラプソン法のエラー
-    double norm_Fext;       //外力ベクトルのノルム
+    double Error_NR;        //ニュートンラプソン法
+    double r_abso_norm;
     int solver_type;        //解く問題のタイプ
 
 } Option;

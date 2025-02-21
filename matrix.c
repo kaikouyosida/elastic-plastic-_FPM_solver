@@ -348,6 +348,49 @@ void calc_unit_vector(double unit_vector[3], const int face_n, const int subdoma
 		unit_vector[i] /= 2.0;
 }
 
+void calc_unit_vector_for_stabilized_term(double unit_vector[3], double face_node_XYZ[4][3],  const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ){
+	double edge1[3];
+	double edge2[3]; // 面を分割してできた三角形の各辺のベクトル
+	double edge1_cross_edge2[3];
+	double direction[3];
+	double area_norm;
+	 
+	//単位ベクトルの方向を決定＋単位法線ベクトルを初期化
+	for(int i = 0; i < option.dim; i++){
+		direction[i] = current_point_XYZ[option.dim * subdomain2 + i] - current_point_XYZ[option.dim * subdomain1 + i];
+		unit_vector[i] = 0.;
+	}
+	
+	//四辺形を2つの三角形に分割→二つの法線ベクトルの平均をその面の法線ベクトルとして計算
+	//現在はサブドメイン形状が６面体限定...なので、境界積分の積分領域は四辺形のみ
+	for(int i = 0; i < 2; i++){
+		//三角形の頂点間を結ぶベクトルを計算
+		for(int j = 0; j < option.dim; j++){
+			edge1[j] = face_node_XYZ[2 * i + 1][j] - face_node_XYZ[2 * i][j];
+			edge2[j] = face_node_XYZ[(2 + i) % 3 + 1][j] - face_node_XYZ[2 * i][j];
+		}
+
+		//3角形の面積ベクトル、面積（スカラー値）を計算
+		cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+		area_norm = norm(edge1_cross_edge2, option.dim);
+
+		//三角形の法線ベクトルを計算
+		for(int j = 0; j < option.dim; j++)
+			edge1_cross_edge2[j] /= area_norm;
+		
+		//法線ベクトルの向きを調整
+		if(dot_product(option.dim, direction, edge1_cross_edge2) < 0.)
+			for(int j = 0; j < option.dim; j++)
+				edge1_cross_edge2[j] *= -1.0;
+		//２つの三角形の法線ベクトルの平均をとる
+		for(int j = 0; j < option.dim; j++){
+			unit_vector[j] += edge1_cross_edge2[j];
+		}
+	}
+	for(int i = 0; i < option.dim; i++)
+		unit_vector[i] /= 2.0;
+}
+
 void generate_unit_vec_to_mat3x6(const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ, double (*N_matrix)[6]){
 	double Ne[3];
 	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
@@ -383,10 +426,11 @@ void calc_Ne_3x9(int subdomain_n1, int subdomain_n2, int face, int *vertex_offse
 	N_matrix[2][0] = 0.0;		N_matrix[2][1] = 0.0;		N_matrix[2][2] = Ne[0];		N_matrix[2][3] = 0.0   ;		N_matrix[2][4] = 0.0;	 	N_matrix[2][5] = Ne[1]; 	N_matrix[2][6] = 0.0;	 		N_matrix[2][7] = 0.0;		N_matrix[2][8] = Ne[2];	
 }
 
-void generate_unit_vec_to_mat1x9(const int face_n, const int subdomain1, const int subdomain2, const double *current_point_XYZ, double N_matrix[9]){
+void generate_unit_vec_to_mat1x9(const int face_n, double face_node_XYZ[4][3], const int subdomain1, const int subdomain2, const double *current_point_XYZ, double N_matrix[9]){
 	double Ne[3];
-	calc_unit_vector(Ne, face_n, subdomain1, subdomain2, current_point_XYZ);
 
+	calc_unit_vector_for_stabilized_term(Ne, face_node_XYZ, face_n, subdomain1, subdomain2, current_point_XYZ);
+	
 	N_matrix[0] = Ne[0] * Ne[0];	N_matrix[1] = Ne[0] * Ne[1]; N_matrix[2] = Ne[0] * Ne[2];
 	N_matrix[3] = Ne[1] * Ne[0];	N_matrix[4] = Ne[1] * Ne[1]; N_matrix[5] = Ne[1] * Ne[2];
 	N_matrix[6] = Ne[2] * Ne[0];	N_matrix[7] = Ne[2] * Ne[1]; N_matrix[8] = Ne[2] * Ne[2];

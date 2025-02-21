@@ -24,7 +24,7 @@ extern Option option;
 int flag = 0;
 int count = 0;
 
-
+#define Stack 1000
 
 void analize_by_NewtonRaphson(){
     FILE *fp_debug;         //デバッグ用のファイルポインタ
@@ -43,19 +43,11 @@ void analize_by_NewtonRaphson(){
     //変数のメモリ確保＋初期値を格納
     init_field();
 
-    // for(int i = 0; i < global.subdomain.N_point; i++){
-    //     if(fabs(sqrt(global.subdomain.point_XYZ[3*i]* global.subdomain.point_XYZ[3*i] + global.subdomain.point_XYZ[3*i+1] * global.subdomain.point_XYZ[3*i+1]) - 1.0) < 1.0e-2
-    //      && global.subdomain.point_XYZ[3*i+1] < 3.0 - 1.0e-5 && global.subdomain.point_XYZ[3*i+1] > 1.0e-5){
-    //         global.subdomain.point_XYZ[3*i] += 0.01;
-    //         global.subdomain.point_XYZ[3*i+1] += 0.01;
-    //         global.subdomain.point_XYZ[3*i+2] -= 0.01;
-    //     }else if(global.subdomain.point_XYZ[3*i+1] < 0.5 && global.subdomain.point_XYZ[3*i+1] >1.0e-5){
-    //         global.subdomain.point_XYZ[3*i+2] -= 0.01;
-    //     }
-    // }
-    
+    //時間ステップのループ
     for(int time_step = 0; time_step < option.N_timestep; time_step++){
         
+        int cut_back_flag = 0;   //カットバック判定用のフラグ
+
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
         u_norm = 100.0;
@@ -70,20 +62,20 @@ void analize_by_NewtonRaphson(){
         fprintf(fp_residual, "iteration         /     error norm        /       u_norm\n");
         #endif
 
-        for(int iteration_step = 0; iteration_step < 1000; iteration_step++){   //反復計算が１０００回を超えたら強制終了
+        for(int iteration_step = 0; iteration_step < Stack; iteration_step++){   //反復計算が１０００回を超えたら強制終了
 
             //変形勾配テンソル、応力、歪みを更新＋内力ベクトルの更新
             update_field_and_internal_forces();
-           
+            printf("internal force updated\n");
             //外力ベクトルの更新
             update_external_force(time_step);
-           
+            printf("external force updated\n");
             generate_coefficient_matrix();
-         
+            printf("coefficient updated\n");
             //残差ベクトルの更新＋収束判定パラメータの更新
             residual_norm = calc_global_force_residual_norm(iteration_step);
 
-            fprintf(fp_residual, "%5d  %+15.14e %+15.14e\n", iteration_step, residual_norm, u_norm);
+            fprintf(fp_residual, "%5d  %+15.14e %+15.14e %+15.14e\n", iteration_step, residual_norm, u_norm, option.r_abso_norm);
             
             printf("Error:%+15.14e %+15.14e\n", residual_norm, u_norm);
             
@@ -91,26 +83,22 @@ void analize_by_NewtonRaphson(){
             #if 1
             if(residual_norm < option.NR_tol || u_norm < option.NR_tol){
                 if(residual_norm < option.NR_tol){
-                    printf("Step %d: %d time: residual norm %+15.14e\n", time_step, iteration_step, residual_norm);
+                    fprintf(fp_residual, "%5d  %+15.14e %+15.14e %+15.14e\n", iteration_step, residual_norm, u_norm, option.r_abso_norm);
                     break;
                 }else if(u_norm < option.NR_tol){
-                    printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration_step, u_norm);
+                    printf("Step %d/%d: %d time: u_norm %+15.14e\n", time_step+1, option.N_timestep, iteration_step, u_norm);
                     break;
                 }
             }
             #endif
-
-            // if(u_norm < option.NR_tol){
-            //     printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration_step, u_norm);
-            //     break;
-            // }
             
             //係数マトリクスにディリクレ境界条件を付与
             ImposeDirichletTangentialMatrix();
-          
+            printf("impose\n");
             //求解用の変数ベクトルと係数マトリクスを用意.LU分解で連立一次方程式を求解.
-            int solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
-            
+            long long solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
+            long long size = solver_DoF * solver_DoF;
+
             if((du = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
                 exit(-1);
@@ -119,29 +107,26 @@ void analize_by_NewtonRaphson(){
                 printf("Error:r's memory is not enough\n");
                 exit(-1);
             }
-            if((K_u = (double *)calloc(solver_DoF * solver_DoF, sizeof(double))) == NULL){
+            if((K_u = (double *)calloc(size, sizeof(double))) == NULL){
                 printf("Error:K_u's memory is not enough\n");
                 exit(-1);
             }
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
-           
-            #if 0
-            int rank = calculate_rank(K_u, solver_DoF);
-            printf("rank = %7d\n", rank);
-            #endif
     
             //連立一次方程式を求解
             //solver_LU_decomposition(K_u, du, r, solver_DoF);
             #if 1
-            //LU分解で疎行列の連立一次方程式を計算
+            //Intel MKLを用いたLU分解で疎行列の連立一次方程式を計算
             int NNZ = 0;
             double *a;
             int *ia, *ja;
 
-            for(int i = 0; i < solver_DoF; i++)
-                for(int j = 0; j < solver_DoF; j++)
-                    if(K_u[solver_DoF *  i + j] != 0)
-                        NNZ++;
+            for(long long i = 0; i < solver_DoF; i++)
+                for(long long j = 0; j < solver_DoF; j++){
+                    long long size_a = solver_DoF *  i + j;
+                        if(K_u[size_a] != 0)
+                            NNZ++;
+                }
 
             if((a = (double *)calloc(NNZ, sizeof(double))) == NULL){
                 printf("Error:a's memory is not enough\n");
@@ -158,10 +143,11 @@ void analize_by_NewtonRaphson(){
             
             count = 0;
             ia[0] = 0;
-            for(int i = 0; i < solver_DoF; i++){
-                for(int j = 0; j < solver_DoF; j++){
+            for(long long i = 0; i < solver_DoF; i++){
+                for(long long j = 0; j < solver_DoF; j++){
                     if(K_u[solver_DoF * i + j] != 0){
-                        a[count] = K_u[solver_DoF * i + j];
+                        long long size_a = solver_DoF *  i + j;
+                        a[count] = K_u[size_a];
                         ja[count] = j;
                         count++;
                     }
@@ -207,8 +193,9 @@ void analize_by_NewtonRaphson(){
                     Initial_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j] + global.subdomain.displacement[i][j];
 
             //ノード変位の増分を更新
-            update_nodal_displacement_by_inital_NT(Initial_point_XYZ);
+            update_nodal_displacement_by_inital_NT(current_point_xyz);
             //update_nodal_displacement_increment(current_point_xyz, Initial_point_XYZ);
+
             printf("debug10\n");
             free(Initial_point_XYZ);
             free(current_point_xyz);
@@ -216,61 +203,36 @@ void analize_by_NewtonRaphson(){
             free(r);
             free(du);
             
-            if(iteration_step == 1000){
-                printf("Iteration is not converged\n");
-                exit(-1);
+            if(iteration_step == option.stop_count){
+                printf("Kut back!\n");
+                cut_back_flag = 1;
+                break;
             }
         }
 
         fclose(fp_residual);
         
-        increment_field();
-        FILE *fp_deformation;
-        double edge[3], edge1[3];
-        double cross[3];
-        double A = 0;;
-        for(int i = 0; i < 3; i++){
-            edge[i] = global.subdomain.point_XYZ[3*4+i] + global.subdomain.displacement[4][i]
-                        - global.subdomain.point_XYZ[3*0+i] + global.subdomain.displacement[0][i];
-            edge1[i] = global.subdomain.point_XYZ[3*20+i] + global.subdomain.displacement[20][i]
-                        - global.subdomain.point_XYZ[3*0+i] + global.subdomain.displacement[0][i];
-        }
-        cross_product(3, edge, edge1, cross);
-        int temmp = norm(cross, 3) * 0.5;
-        A += temmp;
-        for(int i = 0; i < 3; i++){
-            edge[i] = global.subdomain.point_XYZ[3*4+i] + global.subdomain.displacement[4][i]
-                        - global.subdomain.point_XYZ[3*25+i] + global.subdomain.displacement[25][i];
-            edge1[i] = global.subdomain.point_XYZ[3*20+i] + global.subdomain.displacement[20][i]
-                        - global.subdomain.point_XYZ[3*25+i] + global.subdomain.displacement[25][i];
-        }
-    cross_product(3, edge, edge1, cross);
-    temmp = norm(cross, 3) * 0.5;
-    A += temmp;
-    printf("%+15.14e\n", A);
-
-    if(time_step == 0)
-        fp_deformation = fopen("surface.dat", "w");
-        
-    fprintf(fp_deformation, "%+15.14e\n", A);
-
-    if(time_step == 19)
-        fclose(fp_deformation);
-
-        whether_points_is_in_the_subdomain();
-
-        if((time_step + 1) % option.time_output == 0)
-            Output_data(time_step);
-
-        if((time_step + 1) % option.time_output == 0){
-
-            //出力用の節点変位の計算
-            update_nodal_coordinate();
-
-            //paraviewデータの出力
-            paraview_node_data(time_step);
+        //カットバック処理
+        if(cut_back_flag == 1){
+            option.N_timestep = 2.0 * option.N_timestep - time_step;
+            option.Delta_time = option.Delta_time / 2.0;
+            cut_back();
+            time_step--;            
+        }else{
+            increment_field();
             
-            
+            whether_points_is_in_the_subdomain();
+
+            if((time_step + 1) % option.time_output == 0){
+                //アウトプットデータの出力
+                Output_data(time_step);
+
+                //出力用の節点変位の計算
+                update_nodal_coordinate();
+
+                //paraviewデータの出力
+                paraview_node_data(time_step);
+            }
         }
             
     }
@@ -279,7 +241,6 @@ void analize_by_NewtonRaphson(){
 }
 
 void infinitesimal_analization(){
-    const int max_iteration_count = 1000;
     double residual_norm; 
     double *du;
     double *r;
@@ -297,6 +258,7 @@ void infinitesimal_analization(){
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
 
+       int cut_back_flag = 0;
         #if 1
         snprintf(File_name, 128, "debug_for_residual/Residual_parameter%d.dat", time_step);
         fp_residual = fopen(File_name, "w");
@@ -307,11 +269,10 @@ void infinitesimal_analization(){
         fprintf(fp_residual, "iteration         /     error norm\n");
         #endif
 
-        for(int iteration = 0; iteration < max_iteration_count; iteration++){
+        for(int iteration = 0; iteration < Stack; iteration++){
             //内力ベクトルの更新
             update_field_and_internal_infinitesimal();
             printf("Internal force updated!\n");
-
             //外力ベクトルの更新
             update_external_force(time_step);
             printf("External force updated!\n");
@@ -322,24 +283,33 @@ void infinitesimal_analization(){
 
             //収束判定
             residual_norm = calc_global_force_residual_norm(iteration);
-            
+  
             fprintf(fp_residual, "%5d  %+15.14e %+15.14e\n", iteration, residual_norm, u_norm);
             printf("debug4\n");
             printf("Error:%+15.14e %+15.14e\n", residual_norm, u_norm);
             printf("debug5\n");
 
-            if(u_norm <= option.NR_tol){
-                printf("Step %d: %d time: u_norm %+15.14e\n", time_step, iteration, u_norm);
-                break;
+            //収束判定（residual_normが閾値を超えたら反復計算を終了)
+            #if 1
+            if(residual_norm < option.NR_tol || u_norm < option.NR_tol){
+                if(residual_norm < option.NR_tol){
+                    printf("Step %d/%d: %d time: residual norm %+15.14e\n", time_step+1, option.N_timestep, iteration, residual_norm);
+                    break;
+                }else if(u_norm < option.NR_tol){
+                    printf("Step %d/%d: %d time: u_norm %+15.14e\n", time_step+1, option.N_timestep, iteration, u_norm);
+                    break;
+                }
             }
+            #endif
             
             //係数マトリクスにディリクレ境界条件を付与
             ImposeDirichletTangentialMatrix();
             printf("Linear system updated!\n");
 
             //求解用の変数ベクトルと係数マトリクスを用意.LU分解で連立一次方程式を求解.
-            int solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
-            
+            long long solver_DoF = global.subdomain.N_point * option.dim - global.bc.N_D_DoF;
+            long long size = solver_DoF * solver_DoF;
+        
             if((du = (double *)calloc(solver_DoF, sizeof(double))) == NULL){
                 printf("Error:du's memory is not enough\n");
                 exit(-1);
@@ -348,10 +318,11 @@ void infinitesimal_analization(){
                 printf("Error:r's memory is not enough\n");
                 exit(-1);
             }
-            if((K_u = (double *)calloc(solver_DoF * solver_DoF, sizeof(double))) == NULL){
+            if((K_u = (double *)calloc(size, sizeof(double))) == NULL){
                 printf("Error:K_u's memory is not enough\n");
                 exit(-1);
             }
+
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
             printf("Matrix assemble updated!\n");
 
@@ -396,55 +367,49 @@ void infinitesimal_analization(){
 
             Paradiso(solver_DoF, NNZ, a, ia, ja, r, du);
             #endif
-            printf("Solveed!\n");
-
+            printf("Solved!\n");
+          
             // ポイント変位の増分を更新
             update_point_displaecment_increment(du);
             printf("Displacement increment updated!\n");
-            // for(int i = 0; i < global.subdomain.N_point; i++){
-            //     for(int j = 0; j < 3; j++){
-            //         printf("%+15.14e    ", global.subdomain.displacement_increment[i][j]);
-            //     }
-            //     printf("\n");
-            // }
+          
             u_norm = 0;
             for(int i = 0; i < solver_DoF; i++){
                 u_norm += du[i] * du[i];
             }
-
+            if(iteration == option.stop_count){
+                printf("Kut back!\n");
+                cut_back_flag = 1;
+                break;
+            }
             free(K_u);
             free(r);
             free(du);
             
         }
 
-        fclose(fp_residual);
-        increment_field();
+        if(cut_back_flag == 1){
+            option.N_timestep = 2.0 * option.N_timestep - time_step;
+            option.Delta_time = option.Delta_time / 2.0;
+            cut_back();
+            time_step--;            
+        }else{
+            increment_field();
 
-        if((time_step + 1) % option.time_output == 0)
-            Output_data(time_step);
+            whether_points_is_in_the_subdomain();
 
-        if((time_step + 1) % option.time_output == 0){
+            if((time_step + 1) % option.time_output == 0)
+                Output_data(time_step);
 
-            //出力用の節点変位の計算
-            update_nodal_coordinate();
+            if((time_step + 1) % option.time_output == 0){
 
-            //paraviewデータの出力
-            paraview_node_data(time_step);
-        }
-        #if 0
-        if(time_step == 0){
-            fp_debug = fopen("Yield_stress_vs_plastic_strain_elemtn_1.dat", "w");
-            if(fp_debug == NULL){
-                printf("Error:File is not open\n");
-                exit(-1);
+                //出力用の節点変位の計算
+                update_nodal_coordinate();
+
+                //paraviewデータの出力
+                paraview_node_data(time_step);
             }
-            fprintf(fp_debug, "plastic_strain   /   yiels stress\n");
         }
-        fprintf(fp_debug, "%+15.14e       %+15.14e\n", global.subdomain.equivalent_plastic_strains[1], global.subdomain.yield_stresses[1]);
-        if(time_step == option.N_timestep-1)
-            fclose(fp_debug);
-        #endif
     }
    
 }

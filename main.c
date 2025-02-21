@@ -21,19 +21,19 @@ SS_CURVE ss_curve;
 int main(){
     
     Init_model();
-    option.solver_type = 1;
+    option.solver_type = 2;
     
     switch(option.solver_type){
         case NON_LINEAR_SOLVER:
+            printf("Finite deformation analysis start\n");
             analize_by_NewtonRaphson();
         break;
         case INFINITESIMAL:
+            printf("Infinitesimal deformation analysis start\n");
             infinitesimal_analization();
         break;
     }
 
-
-    
     //nit_model()で確保したメモリの開放
     break_model_memory();
 

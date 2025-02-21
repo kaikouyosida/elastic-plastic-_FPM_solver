@@ -15,7 +15,10 @@ void init_field(){
     global.subdomain.displacement_increment = matrix(global.subdomain.N_point, option.dim);
 
     //全体剛性マトリクスをゼロ処理
-    if((global.subdomain.Global_K = (double *)calloc(option.dim * global.subdomain.N_point * option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+    long long DoF_free = option.dim * global.subdomain.N_point;
+    long long size = DoF_free * DoF_free;
+    //printf("%15lld %15lld\n", size, DoF_free);
+    if((global.subdomain.Global_K = (double *)calloc(size, sizeof(double))) == NULL){
         printf("Error:Global_K's memory is not enough\n");
         exit(-1);
     }
@@ -90,7 +93,7 @@ void init_field(){
     for(int point = 0; point < global.subdomain.N_point; point++){
         global.subdomain.current_yield_stresses[point] = global.subdomain.yield_stresses[point];
     }
-    
+  
     //背応力をゼロ処理
     global.subdomain.back_stresses = matrix(global.subdomain.N_point, 6);
     global.subdomain.current_back_stresses = matrix(global.subdomain.N_point, 6);
@@ -115,7 +118,6 @@ void init_field(){
         exit(-1);
     }
     global.subdomain.nodal_back_stresses = matrix(global.subdomain.N_node, 6);
-
 }
 void break_field(){
     free_matrix(global.subdomain.nodal_back_stresses);

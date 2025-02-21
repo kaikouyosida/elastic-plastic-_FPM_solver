@@ -13,7 +13,9 @@
 extern Global global;
 extern Option option;
 
-void calc_G(const int dim, const int point_n, const double *point_xyz, const int *support_offset, const int *support, double **G){
+void calc_G(const int dim, const int point_n, const double *point_xyz, const int *support_offset, const int *support, double **G)
+#if 0
+{
     double **A;
     double **AT;
     double **ATA;
@@ -31,19 +33,11 @@ void calc_G(const int dim, const int point_n, const double *point_xyz, const int
         for (int j = 0; j < dim; j++){
 
             A[i][j] = point_xyz[dim * support_point + j] - point_xyz[dim * point_n + j];
-
-            // if(isnan(A[i][j])){
-            //     double a = distance(3, point_n, support_point, point_xyz);
-            //     printf("point:point: %5d sup_point: %5d distance %15.14e\n", point_n, support_point, a);
-            //     for(int m = 0; m < 3; m++){
-            //         printf("Differ: point_n⇒%+15.14e support⇒%+15.14e\n", point_xyz[3*point_n+m],point_xyz[3*support_point+m]);
-            //     }
-            // }
         }
     }
-
+    
     G1 = matrix(dim, N_support + 1);
-    // サポートドメインが2つ以上 //
+    //サポートドメインが2つ以上
     if (1 < N_support){
 
         AT = matrix(dim, N_support);
@@ -68,6 +62,8 @@ void calc_G(const int dim, const int point_n, const double *point_xyz, const int
         free_matrix(inv_ATA);
         free_matrix(ATA);
         free_matrix(AT);
+
+
     }
     // サポートドメインが1つの場合 //
     else
@@ -95,17 +91,91 @@ void calc_G(const int dim, const int point_n, const double *point_xyz, const int
     free_matrix(G1);
     free_matrix(A);
 }
+#else
+{
+    double **AT;            //マトリクスAの転置AT
+    double **A;             //ポイント間距離で構築されるマトリクス
+    double **ATA;           //ATとAの積
+    double **inverse_ATA;   //ATAの逆行列
+    double **I;             
+    //point_nのサポート点数
+    int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
+
+    //メモリを確保
+    A = matrix(3 * N_support, 9);   
+    AT = matrix(9, 3 * N_support); 
+    ATA = matrix(9, 9);
+    inverse_ATA = matrix(9, 9);   
+    I = matrix(3 * N_support, 3 * (N_support + 1));
+
+    //ポイント間距離を計算してATに格納
+    for(int i = 0; i < 3; i++){
+        for(int j = 0; j < 3; j++){
+            for(int k = 0; k < N_support; k++){
+                int support = global.subdomain.support[global.subdomain.support_offset[point_n] + k];
+                AT[3 * i + j][3 * k + i] = point_xyz[dim * support + j] - point_xyz[dim * point_n + j];
+            }
+        }
+    }
+    //ATの転置Aを計算
+    trans_mat(9, 3*N_support, AT, A);
+
+    //ATとAの積を計算
+    for(int i = 0; i < 9; i++){
+        for(int j = 0; j < 9; j++){
+            double ATA_ij = 0;
+
+            for(int k = 0; k < 3 * N_support; k++)
+                ATA_ij += AT[i][k] * A[k][j];
+            
+            ATA[i][j] = ATA_ij;
+        }
+    }
+
+    //ATAの逆行列を計算
+    inverse_mat(9, ATA, inverse_ATA);
+
+    //Iマトリクス
+    for(int i = 0; i < N_support; i++)
+        for(int  j = 0; j < 3; j++)
+            I[3 * i + j][j] = -1.0;
+    
+    for(int i = 0; i < 3 * N_support; i++)
+        I[i][3 + i] = 1.0;
+    //形状関数の微係数を計算し,Gに格納
+    for(int i = 0; i < 9; i++){
+        for(int j = 0; j < 3 * (N_support + 1); j++){
+            double G_ij = 0;
+            for(int k = 0; k < 3 * N_support; k++){
+                double invATA_AT_ik = 0;
+                for(int l = 0; l < 9; l++){
+                    invATA_AT_ik += inverse_ATA[i][l] * AT[l][k];
+                }
+
+                G_ij += invATA_AT_ik * I[k][j];
+            }
+            G[i][j] = G_ij;
+        }
+    }
+
+    free_matrix(I);
+    free_matrix(inverse_ATA);
+    free_matrix(ATA);
+    free_matrix(AT);
+    free_matrix(A);
+}
+#endif
 
 void generate_linear_b_matrix(double (*b_t_matrix)[6], const int point_n){
     double **G;
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
-    
+    long long DoF_free = option.dim * global.subdomain.N_point;
     G = matrix(option.dim * option.dim, option.dim * (N_support + 1));
 
     if(option.solver_type == 1){
         double *current_point_XYZ;
 
-        if((current_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
+        if((current_point_XYZ = (double *)calloc(DoF_free, sizeof(double))) == NULL){
             printf("Error: current_point_XYZ's memory is not enough\n");
             exit(-1);
         }
@@ -149,9 +219,9 @@ void generate_linear_b_matrix(double (*b_t_matrix)[6], const int point_n){
         b_t_matrix[2][5] = dn_dx_0_0;
 
         for(int i = 1; i < N_support + 1; i++){
-            const double dn_dx_0_i = G[0][3 * i];
-            const double dn_dx_1_i = G[1][3 * i];
-            const double dn_dx_2_i = G[2][3 * i];
+            const double dn_dx_0_i = G[0][option.dim * i];
+            const double dn_dx_1_i = G[1][option.dim * i];
+            const double dn_dx_2_i = G[2][option.dim * i];
 
             b_t_matrix[option.dim * i][0] = dn_dx_0_i;
             b_t_matrix[option.dim * i][1] = 0.0;
@@ -252,9 +322,10 @@ void calc_shape(const double *xyz, const int dim, const int point_n, const doubl
 
 //試行関数の計算 (pm = 0 or 1で変位と変位増分の試行関数を計算)
 void trial_u(const double *xyz, const int point_n, const double *point_XYZ, double *u_h, const int pm){
+    //point_nのサポート点数
     int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n];
-    double *u;
-    double shapeF_t[180][3];
+    double *u;                          //変位, 変位増分
+    double shapeF_t[180][3];            //形状関数の転置
 
     if((u = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
         printf("Error:u's memory is not enough\n");
@@ -285,7 +356,8 @@ void trial_u(const double *xyz, const int point_n, const double *point_XYZ, doub
     for(int i = 0; i < option.dim; i++){
         double u_i = 0.;
         for(int j = 0; j < N_support; j++){
-            u_i += shapeF_t[option.dim * (j + 1) + i][i] * u[option.dim * global.subdomain.support[global.subdomain.support_offset[point_n] + j] + i];
+            int support = global.subdomain.support[global.subdomain.support_offset[point_n] + j];
+            u_i += shapeF_t[option.dim * (j + 1) + i][i] * u[option.dim * support + i];
         }
         u_h[i] += u_i;
     } 

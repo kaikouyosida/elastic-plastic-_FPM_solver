@@ -29,7 +29,7 @@ void reverseVector(double *vector, const int num){
 
 void assemble_vector(int point_n, double **global_vecter, const double *element_vector){
     int support[60];        //サポート番号
-    int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n]; 
+    int N_support = global.subdomain.support_offset[point_n + 1] - global.subdomain.support_offset[point_n]; //サポート点の数
    
     for(int i = 0; i < N_support; i++)
         support[i] = global.subdomain.support[global.subdomain.support_offset[point_n] + i];
@@ -48,7 +48,6 @@ void generate_current_node_vector(int node_1, int node_2, double *vector){
     for(int i = 0; i < option.dim; i++)
         vector[i] = global.subdomain.node_XYZ[option.dim * node_1 + i] - global.subdomain.node_XYZ[option.dim * node_2 + i]
                   + global.subdomain.nodal_displacements[node_1][i] - global.subdomain.nodal_displacements[node_2][i];
-                //+ global.subdomain.nodal_displacement_increments[node_1][i] - global.subdomain.nodal_displacement_increments[node_2][i];
 }
 
 //頂点から任意の座標に伸びるベクトルの生成
@@ -56,7 +55,6 @@ void generate_current_node_to_point_vector(int node,double *point,double *vector
     for(int i = 0; i < option.dim; i++)
         vector[i] = point[i] - global.subdomain.node_XYZ[option.dim * node + i]
                 - global.subdomain.nodal_displacements[node][i];
-                //- global.subdomain.nodal_displacement_increments[node][i];
 }
 
 //頂点2から頂点1に伸びるベクトルの生成
@@ -64,7 +62,6 @@ void generate_current_edge_vector(double *vector ,int point_n, int node_id_1, in
     for(int i = 0; i < option.dim; i++)
         vector[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id_1] + i] - global.subdomain.node_XYZ[option.dim * subdomain_node[node_id_2] + i]
                   + global.subdomain.nodal_displacement_sd[point_n][node_id_1][i] - global.subdomain.nodal_displacement_sd[point_n][node_id_2][i];
-                  //+ global.subdomain.nodal_displacement_increment_sd[point_n][node_id_1][i] - global.subdomain.nodal_displacement_increment_sd[point_n][node_id_2][i];
 }
 
 //頂点から任意の点の座標に伸びるベクトルの生成
@@ -73,7 +70,6 @@ void generate_current_points_vector(double *vector, double *point_xyz, int point
         vector[i] = point_xyz[i]
                     - (global.subdomain.node_XYZ[option.dim * subdomain_node[node_id] + i]
                     + global.subdomain.nodal_displacement_sd[point_n][node_id][i]);
-                    //+ global.subdomain.nodal_displacement_increment_sd[point_n][node_id][i]);
 }
 
 //point側のサブドメインにおける形状関数から得た節点の現在座標
@@ -82,7 +78,6 @@ void generate_current_face_node(double face_node_XYZ[4][3], int node_id[4] ,int 
         for(int j = 0; j < option.dim; j++){
             face_node_XYZ[i][j] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[i]] + j]
                                 + global.subdomain.nodal_displacement_sd[point][node_id[i]][j];
-                                //+ global.subdomain.nodal_displacement_increment_sd[point][node_id[i]][j];
         }
     }
 }
@@ -97,12 +92,10 @@ void generate_current_node_of_face(double face_node_XYZ[4][3], int face_n, int p
 
     //内部境界面のノード番号のアドレスを格納
     generate_node_id(face_n, point, subdomain_node, node_id);
-
-    for(int i = 0; i < 4; i++){
+    for(int i = 0; i < NUMBER_OF_NODE_IN_FACE; i++){
         for(int j = 0; j < option.dim; j++){
             face_node_XYZ[i][j] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[i]] + j]
                                 + global.subdomain.nodal_displacement_sd[point][node_id[i]][j];
-                                //+ global.subdomain.nodal_displacement_increment_sd[point][node_id[i]][j];
         }
     }
 }

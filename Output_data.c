@@ -199,7 +199,7 @@ void calc_extract_component(){
     double nodal_equivarent_stress[10000];
    
    #if 1
-    fp_extract = fopen("Data_Files_Output/circle_0905/Output_cauchy_stress_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_cauchy_stress_time39.dat", "r");
     if(fp_extract == NULL){
         printf("File is not open\n");
         exit(-1);
@@ -214,7 +214,7 @@ void calc_extract_component(){
         fscanf(fp_extract, "\n");
     }
     fclose(fp_extract);
-    fp_extract = fopen("Data_Files_Output/circle_0905/Output_Plastic_strain_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_Plastic_strain_time39.dat", "r");
     if(fp_extract == NULL){
         printf("File is not enough\n");
         exit(-1);
@@ -230,7 +230,7 @@ void calc_extract_component(){
     }
     fclose(fp_extract);
 
-    fp_extract = fopen("Data_Files_Output/circle_0905/Output_Deformation_time49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_Deformation_time39.dat", "r");
     if(fp_extract == NULL){
         printf("Error:Memory is not enough\n");
         exit(-1);
@@ -245,7 +245,7 @@ void calc_extract_component(){
     }
     fclose(fp_extract);
 
-    fp_extract = fopen("Data_Files_Output/circle_0905/Output_yield_stress49.dat", "r");
+    fp_extract = fopen("Data_Files_Output/circle_0905/Output_yield_stress39.dat", "r");
     if(fp_extract == NULL){
         printf("Error:File is not open\n");
         exit(-1);
@@ -283,42 +283,6 @@ void calc_extract_component(){
         if(fabs(global.subdomain.point_XYZ[3*i+1]) < 1.0e-5 && fabs(global.subdomain.point_XYZ[3*i+2] - 1.0) < 1.0e-5){
             printf("%5d %+15.14e %+15.14e\n", i, global.subdomain.point_XYZ[3*i], 3.0 / 2.0 * equivarent_stress[i]);
         }
-    }
-    #endif
-
-    #if 0
-    double error = 0.;
-    generateElasticDMatrix(d_matrix);
-
-    double stress_ext[6] = {0, 100.0, 0.0, 0, 0, 0};
-    double strain_ext[6] = {-0.00015, 0.0005, -0.00015, 0, 0, 0};
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        double volume = calc_initial_subdomain_volume(i);
-        double integrated_part = 0.;
-        for(int j = 0; j < 6; j++){
-            double strain_D_j = 0.;
-            for(int k = 0; k < 6; k++){
-                strain_D_j += (strain_ext[k]) * d_matrix[k][j];
-            }
-            integrated_part += strain_D_j * (strain_ext[j]);
-        }
-        error += integrated_part * volume;
-    }
-     
-    error = sqrt(error);
-    printf("%+15.14e\n", error);
-    #endif
-    #if 0
-    for(int i = 0; i < global.subdomain.N_point; i++){
-        equivarent_stress[i] = calc_equivalent_stress(stress[i]);
-    }
-    for(int i = 0; i < global.subdomain.N_node; i++){
-        int N_ar_node = global.subdomain.ar_node_offset[i + 1] - global.subdomain.ar_node_offset[i];
-        double temp = 0.;
-        for(int j = 0; j < N_ar_node; j++){
-            temp += equivarent_stress[global.subdomain.ar_node[global.subdomain.ar_node_offset[i] + j]] / N_ar_node;
-        }
-        printf("%+15.14e\n", temp);
     }
     #endif
 
@@ -409,6 +373,7 @@ void paraview_node_data(int time_step){
     FILE *fp_paraview;
     double stresses[9];
     double strain[9];
+    double F_grad[9];
     char FILE_name[128];
     double Equivalent_strain[30000];
 
@@ -481,6 +446,58 @@ void paraview_node_data(int time_step){
     }
     fclose(fp_paraview);
 
+    snprintf(FILE_name, 128,"paraview/Paraview_time_deformation_gradient%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name,"w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
+
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
+    
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+    
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");    
+      fprintf(fp_paraview,"POINT_DATA %d\n", global.subdomain.N_node);
+    fprintf(fp_paraview, "TENSORS node_deformation_gradient double\n");
+    for(int node = 0; node < global.subdomain.N_node; node++){
+        for(int i = 0; i < 9; i++)
+            F_grad[i] = 0.;
+        int N_ar_node = global.subdomain.ar_node_offset[node + 1] - global.subdomain.ar_node_offset[node];
+        for(int i = 0; i < N_ar_node; i++){
+            for(int j = 0; j < 3; j++){
+                for(int k = 0; k < 3; k++){
+                    F_grad[3 * j + k] += global.subdomain.deformation_gradients[j][k][global.subdomain.ar_node[global.subdomain.ar_node_offset[node] + i]] / (double)N_ar_node;
+                }
+            }
+        }
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                fprintf(fp_paraview, "%+15.14e  ", F_grad[3 * i + j]);
+            }
+            fprintf(fp_paraview, "\n");
+        }
+    }
+    fclose(fp_paraview);
 
     snprintf(FILE_name, 128,"paraview/Paraview_time_stress%d.vtk", time_step);
     fp_paraview = fopen(FILE_name,"w");
@@ -720,5 +737,57 @@ void paraview_node_data(int time_step){
 
     fclose(fp_paraview);
 
+    snprintf(FILE_name, 128, "paraview/Paraview_point_deformation_gradient%d.vtk", time_step);
+    fp_paraview = fopen(FILE_name, "w");
+    if(fp_paraview == NULL){
+        printf("File is not open\n");
+        exit(-1);
+    }
+    fprintf(fp_paraview, "# vtk DataFile Version 4.1\n");
+    fprintf(fp_paraview,"FPM / 3D / hexa elements\n");
+    fprintf(fp_paraview, "ASCII\n");
+    fprintf(fp_paraview, "DATASET UNSTRUCTURED_GRID\n");
+    fprintf(fp_paraview, "POINTS %d double\n", global.subdomain.N_node);
 
+    for(int i = 0; i < global.subdomain.N_node; i++){
+        for(int j = 0; j < option.dim ; j++){
+            fprintf(fp_paraview, "%+15.14e  ", global.subdomain.node_XYZ[option.dim * i + j] + global.subdomain.nodal_displacements[i][j]);
+        }  
+        fprintf(fp_paraview, "\n");
+    }
+    
+    fprintf(fp_paraview, "CELLS %d %d\n", global.subdomain.N_point, global.subdomain.N_point * (NUMBER_OF_NODE_IN_SUBDOMAIN + 1));
+
+    for(int i = 0; i < global.subdomain.N_point; i++){
+        fprintf(fp_paraview,  "%5d ", NUMBER_OF_NODE_IN_SUBDOMAIN);
+        for(int j = 0; j < NUMBER_OF_NODE_IN_SUBDOMAIN; j++){
+            fprintf(fp_paraview,  "%5d ", global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * i + j]);
+        }
+        fprintf(fp_paraview,  "\n");
+    }
+
+    fprintf(fp_paraview,"CELL_TYPES %d\n", global.subdomain.N_point);
+    for(int i = 0 ; i < global.subdomain.N_point; i++)
+        fprintf(fp_paraview,  "12\n");
+
+    fprintf(fp_paraview,"CELL_DATA %d\n", global.subdomain.N_point);
+    fprintf(fp_paraview, "TENSORS point_deformation_gradient double\n");
+    for(int point = 0; point < global.subdomain.N_point; point++){
+        for(int i = 0; i < 9; i++)
+            F_grad[i] = 0.;
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                F_grad[3 * i + j] = global.subdomain.deformation_gradients[i][j][point];
+            }
+        }
+        
+        for(int i = 0; i < 3; i++){
+            for(int j = 0; j < 3; j++){
+                fprintf(fp_paraview, "%+15.14e  ", F_grad[3 * i + j]);
+            }
+            fprintf(fp_paraview, "\n");
+        }
+    }
+
+    fclose(fp_paraview);
 }

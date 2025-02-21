@@ -106,7 +106,7 @@ double calc_initial_subdomain_volume(int point_n){
     int face_node[NUMBER_OF_NODE_IN_FACE];
     double edge1[3], edge2[3];
     double node_to_center_edge[3];
-    double edge1crossedge2[3];
+    double edge1_cross_edge2[3];
 
     int N_face = global.subdomain.face_offset[point_n + 1] - global.subdomain.face_offset[point_n];
     
@@ -133,16 +133,16 @@ double calc_initial_subdomain_volume(int point_n){
             edge2[j] = global.subdomain.node_XYZ[option.dim * face_node[2] + j] - global.subdomain.node_XYZ[option.dim * face_node[1] + j];
             node_to_center_edge[j] = center[j] - global.subdomain.node_XYZ[option.dim * face_node[1] + j];
         }
-        cross_product(option.dim, edge1, edge2, edge1crossedge2);
-        volume += fabs(dot_product(option.dim, edge1crossedge2, node_to_center_edge));
+        cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+        volume += fabs(dot_product(option.dim, edge1_cross_edge2, node_to_center_edge));
 
         for(int j = 0; j < option.dim; j++){
             edge1[j] = global.subdomain.node_XYZ[option.dim * face_node[2] + j] - global.subdomain.node_XYZ[option.dim * face_node[3] + j];
             edge2[j] = global.subdomain.node_XYZ[option.dim * face_node[0] + j] - global.subdomain.node_XYZ[option.dim * face_node[3] + j];
             node_to_center_edge[j] = center[j] - global.subdomain.node_XYZ[option.dim * face_node[3] + j];
         }
-        cross_product(option.dim, edge1, edge2, edge1crossedge2);
-        volume += fabs(dot_product(option.dim, edge1crossedge2, node_to_center_edge));
+        cross_product(option.dim, edge1, edge2, edge1_cross_edge2);
+        volume += fabs(dot_product(option.dim, edge1_cross_edge2, node_to_center_edge));
     }
     volume /= 6.0;
     
@@ -183,10 +183,10 @@ double calc_mapping_parameter(int face_n, int point_n, int s, int t, double *X){
         generate_node_id(face_n, point_n, subdomain_node, node_id);
         
         for(int i = 0; i < option.dim; i++){
-            x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[0]][i];
-            x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[1]][i];
-            x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[2]][i];
-            x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i];// + global.subdomain.nodal_displacement_increment_sd[point_n][node_id[3]][i];
+            x1[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[0]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[0]][i];
+            x2[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[1]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[1]][i];
+            x3[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[2]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[2]][i];
+            x4[i] = global.subdomain.node_XYZ[option.dim * subdomain_node[node_id[3]] + i] + global.subdomain.nodal_displacement_sd[point_n][node_id[3]][i];
         }
     }else{
         for(int i = 0; i < option.dim; i++){
