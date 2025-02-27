@@ -26,9 +26,9 @@ int count = 0;
 
 #define Stack 1000
 
+//有限変形弾塑性解析プログラム
 void analize_by_NewtonRaphson(){
-    FILE *fp_debug;         //デバッグ用のファイルポインタ
-    FILE *fp_residual;
+    FILE *fp_residual;      //収束履歴を出力するためのファイルポインタ    
     char FILE_name[128];    //デバッグ用の文字配列
     double residual_norm;   //残差ノルム（収束判定）
     double u_norm;           //変位修正量ノルム（収束判定）
@@ -37,7 +37,6 @@ void analize_by_NewtonRaphson(){
     double *K_u;            //求解用の接線剛性マトリクス
     double *r;              //求解用の残差ベクトル
     double *current_point_xyz;      //現在配置のポイント
-    double *Initial_point_XYZ;      //各ステップの現配置のポイント座標
 
     global.count = 0.;
     //変数のメモリ確保＋初期値を格納
@@ -50,6 +49,8 @@ void analize_by_NewtonRaphson(){
 
         option.time = option.Delta_time * (time_step + 1);
         option.time_old = option.Delta_time * time_step;
+
+        //絶対変位増分ノルムの初期値は１００とする
         u_norm = 100.0;
 
         #if 1
@@ -85,10 +86,13 @@ void analize_by_NewtonRaphson(){
                 if(residual_norm < option.NR_tol){
                     fprintf(fp_residual, "%5d  %+15.14e %+15.14e %+15.14e\n", iteration_step, residual_norm, u_norm, option.r_abso_norm);
                     break;
-                }else if(u_norm < option.NR_tol){
+                }
+                #if 1
+                else if(u_norm < option.NR_tol){
                     printf("Step %d/%d: %d time: u_norm %+15.14e\n", time_step+1, option.N_timestep, iteration_step, u_norm);
                     break;
                 }
+                #endif
             }
             #endif
             
@@ -113,9 +117,10 @@ void analize_by_NewtonRaphson(){
             }
             assemble_matrix_and_vector_for_Dirichlet(K_u, r);
     
-            //連立一次方程式を求解
+            //連立一次方程式をLU分解で求解
             //solver_LU_decomposition(K_u, du, r, solver_DoF);
-            #if 1
+            
+        
             //Intel MKLを用いたLU分解で疎行列の連立一次方程式を計算
             int NNZ = 0;
             double *a;
@@ -156,14 +161,10 @@ void analize_by_NewtonRaphson(){
             }
 
             Paradiso(solver_DoF, NNZ, a, ia, ja, r, du);
-            #endif
             printf("debug8\n");
+
             //ポイントの変位修正ベクトルの値をもとに変位増分を更新.
             if((current_point_xyz = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
-                printf("current_point_xyz's memory is not enough\n");
-                exit(-1);
-            }
-            if((Initial_point_XYZ = (double *)calloc(option.dim * global.subdomain.N_point, sizeof(double))) == NULL){
                 printf("current_point_xyz's memory is not enough\n");
                 exit(-1);
             }
@@ -188,16 +189,10 @@ void analize_by_NewtonRaphson(){
                 }
             }
 
-            for(int i = 0; i < global.subdomain.N_point; i++)
-                for(int j = 0; j < option.dim; j++)
-                    Initial_point_XYZ[option.dim * i + j] = global.subdomain.point_XYZ[option.dim * i + j] + global.subdomain.displacement[i][j];
-
-            //ノード変位の増分を更新
-            update_nodal_displacement_by_inital_NT(current_point_xyz);
-            //update_nodal_displacement_increment(current_point_xyz, Initial_point_XYZ);
+            //節点変位の増分を更新
+            update_nodal_displacement_by_current_NT(current_point_xyz);
 
             printf("debug10\n");
-            free(Initial_point_XYZ);
             free(current_point_xyz);
             free(K_u);
             free(r);
@@ -221,7 +216,7 @@ void analize_by_NewtonRaphson(){
         }else{
             increment_field();
             
-            whether_points_is_in_the_subdomain();
+            //whether_points_is_in_the_subdomain();
 
             if((time_step + 1) % option.time_output == 0){
                 //アウトプットデータの出力
@@ -240,6 +235,7 @@ void analize_by_NewtonRaphson(){
     break_field();          //変数のメモリを開放
 }
 
+//微小変形弾塑性解析プログラム
 void infinitesimal_analization(){
     double residual_norm; 
     double *du;
@@ -247,7 +243,6 @@ void infinitesimal_analization(){
     double *K_u;
     double u_norm;
 
-    FILE *fp_debug;
     char File_name[128];
     FILE *fp_residual;
 
@@ -284,7 +279,7 @@ void infinitesimal_analization(){
             //収束判定
             residual_norm = calc_global_force_residual_norm(iteration);
   
-            fprintf(fp_residual, "%5d  %+15.14e %+15.14e\n", iteration, residual_norm, u_norm);
+            fprintf(fp_residual, "%5d  %+15.14e %+15.14e %+15.14e\n", iteration, residual_norm, u_norm, option.r_abso_norm);
             printf("debug4\n");
             printf("Error:%+15.14e %+15.14e\n", residual_norm, u_norm);
             printf("debug5\n");
@@ -396,7 +391,7 @@ void infinitesimal_analization(){
         }else{
             increment_field();
 
-            whether_points_is_in_the_subdomain();
+            //whether_points_is_in_the_subdomain();
 
             if((time_step + 1) % option.time_output == 0)
                 Output_data(time_step);

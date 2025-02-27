@@ -815,7 +815,7 @@ void update_point_displaecment_increment(double *du){
     }
 }
 
-void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz){
+void update_nodal_displacement_by_current_NT(double *current_point_xyz){
     double node_xyz[3];
     double u_h[3];
 
@@ -830,7 +830,7 @@ void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz){
                 node_xyz[j] = global.subdomain.node_XYZ[option.dim * global.subdomain.subdomain_node[NUMBER_OF_NODE_IN_SUBDOMAIN * point + i] + j]
                             + global.subdomain.nodal_displacement_sd[point][i][j];
         
-            trial_u(node_xyz, point, Initial_point_xyz, u_h, 0);
+            trial_u(node_xyz, point, current_point_xyz, u_h, 0);
             
             for(int j = 0; j < option.dim; j++)
                 global.subdomain.nodal_displacement_sd[point][i][j] = u_h[j];

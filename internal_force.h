@@ -24,7 +24,7 @@ double calc_global_force_residual_norm(int iteration_step);
 void update_point_displaecment_increment(double *du);
 
 //節点変位の増分を更新
-void update_nodal_displacement_by_inital_NT(double *Initial_point_xyz);
+void update_nodal_displacement_by_current_NT(double *current_point_xyz);
 void update_nodal_displacement_increment(double *current_point_XYZ, double *Initial_point_xyz);
 
 

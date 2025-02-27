@@ -299,7 +299,7 @@ void calc_extract_component(){
 
 }
 
-//出力用の節点変位の計算
+//Paraview出力用の節点変位の計算（各サブドメインの節点変位の平均を計算）
 void update_nodal_coordinate(){
     int ar_point[27];
     double nodal_displacement[3];
